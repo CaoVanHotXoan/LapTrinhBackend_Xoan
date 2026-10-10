@@ -5,7 +5,9 @@ import type { Request, Response, NextFunction } from 'express';
 import {
   layDanhSachSinhVien,
   timSinhVienTheoMa,
-  themSinhVien
+  themSinhVien,
+  capNhatSinhVien as serviceCapNhatSinhVien,
+  xoaSinhVien as serviceXoaSinhVien
 } from '../services/sinhVien.service.js';
 
 // Controller 1: Xử lý yêu cầu lấy danh sách toàn bộ sinh viên
@@ -82,6 +84,55 @@ export async function taoSinhVien(
     });
   } catch (error) {
     // Bắt và chuyển tiếp lỗi (AppError hoặc lỗi hệ thống) cho errorMiddleware
+    next(error);
+  }
+}
+
+// Controller 4: Xử lý yêu cầu cập nhật thông tin sinh viên (PUT /api/v1/sinh-vien/:maSV)
+export async function capNhatSinhVien(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    // 1. Lấy mã sinh viên từ param URL
+    const { maSV } = req.params;
+
+    // 2. Chờ Service xử lý cập nhật thông tin với dữ liệu body
+    const sinhVienCapNhat = await serviceCapNhatSinhVien(String(maSV), req.body);
+
+    // 3. Trả về mã HTTP 200 (OK) kèm theo dữ liệu sinh viên sau khi cập nhật
+    res.status(200).json({
+      success: true,
+      message: 'Cập nhật sinh viên thành công',
+      data: sinhVienCapNhat
+    });
+  } catch (error) {
+    // Chuyển tiếp các lỗi nghiệp vụ hoặc lỗi server cho middleware xử lý
+    next(error);
+  }
+}
+
+// Controller 5: Xử lý yêu cầu xóa sinh viên theo mã số (DELETE /api/v1/sinh-vien/:maSV)
+export async function xoaSinhVien(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    // 1. Lấy mã sinh viên từ param URL
+    const { maSV } = req.params;
+
+    // 2. Chờ Service thực hiện xóa bản ghi trong CSDL
+    await serviceXoaSinhVien(String(maSV));
+
+    // 3. Trả về HTTP 200 (OK) với thông báo thành công (theo quy ước không trả data)
+    res.status(200).json({
+      success: true,
+      message: 'Xóa sinh viên thành công'
+    });
+  } catch (error) {
+    // Chuyển tiếp lỗi cho middleware xử lý
     next(error);
   }
 }

@@ -110,6 +110,108 @@ export class SinhVienService {
       throw error;
     }
   }
+
+  // 4. Nghiệp vụ: Cập nhật thông tin sinh viên theo mã số maSV (bất đồng bộ)
+  public async capNhatSinhVien(maSVParam: string, input: unknown): Promise<ISinhVienDTO> {
+    // Bước 1: Kiểm tra tham số maSV từ URL có hợp lệ không
+    if (!maSVParam || typeof maSVParam !== 'string') {
+      throw new AppError(400, 'Mã sinh viên trên URL không hợp lệ');
+    }
+    const maSV = maSVParam.trim();
+    if (maSV.length === 0) {
+      throw new AppError(400, 'Mã sinh viên không được để trống');
+    }
+
+    // Bước 2: Kiểm tra dữ liệu Body gửi lên phải là một đối tượng JSON
+    if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+      throw new AppError(400, 'Dữ liệu cập nhật phải là một đối tượng JSON hợp lệ');
+    }
+
+    const data = input as Record<string, unknown>;
+
+    // Bước 3: Kiểm tra không được truyền các trường ngoài hợp đồng (chỉ cho phép hoTen, email, maLop)
+    const allowedFields = ['hoTen', 'email', 'maLop'];
+    const extraFields = Object.keys(data).filter((key) => !allowedFields.includes(key));
+    if (extraFields.length > 0) {
+      throw new AppError(400, `Không cho phép trường ngoài hợp đồng: ${extraFields.join(', ')}`);
+    }
+
+    // Bước 4: Kiểm tra bắt buộc phải đủ cả 3 trường chuỗi (hoTen, email, maLop)
+    if (
+      typeof data.hoTen !== 'string' ||
+      typeof data.email !== 'string' ||
+      typeof data.maLop !== 'string'
+    ) {
+      throw new AppError(400, 'Dữ liệu cập nhật phải có đủ 3 trường kiểu chuỗi: hoTen, email, maLop');
+    }
+
+    // Chuẩn hóa loại bỏ khoảng trắng ở hai đầu
+    const hoTen = data.hoTen.trim();
+    const email = data.email.trim();
+    const maLop = data.maLop.trim();
+
+    // Bước 5: Kiểm tra dữ liệu không được để chuỗi rỗng sau khi trim
+    if (hoTen.length === 0 || maLop.length === 0) {
+      throw new AppError(400, 'Họ tên và mã lớp không được để trống');
+    }
+
+    // Bước 6: Kiểm tra định dạng cơ bản của email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      throw new AppError(400, 'Địa chỉ email không đúng định dạng');
+    }
+
+    // Bước 7: Kiểm tra giới hạn độ dài ký tự theo cấu trúc bảng DB
+    if (hoTen.length > 150) {
+      throw new AppError(400, 'Họ tên không được vượt quá 150 ký tự');
+    }
+    if (email.length > 254) {
+      throw new AppError(400, 'Email không được vượt quá 254 ký tự');
+    }
+    if (maLop.length > 50) {
+      throw new AppError(400, 'Mã lớp không được vượt quá 50 ký tự');
+    }
+
+    // Bước 8: Kiểm tra xem sinh viên có tồn tại trong CSDL hay không (trả về 404 nếu không tìm thấy)
+    const svTonTai = await this.repo.findByMaSV(maSV);
+    if (!svTonTai) {
+      throw new AppError(404, 'Không tìm thấy sinh viên');
+    }
+
+    // Bước 9: Gọi Repository để cập nhật dữ liệu vào SQL Server
+    const ketQua = await this.repo.update(maSV, { hoTen, email, maLop });
+    if (!ketQua) {
+      throw new AppError(404, 'Không tìm thấy sinh viên để cập nhật');
+    }
+
+    return ketQua;
+  }
+
+  // 5. Nghiệp vụ: Xóa sinh viên theo mã số maSV (bất đồng bộ)
+  public async xoaSinhVien(maSVParam: string): Promise<void> {
+    // Bước 1: Kiểm tra tham số maSV từ URL có hợp lệ không
+    if (!maSVParam || typeof maSVParam !== 'string') {
+      throw new AppError(400, 'Mã sinh viên trên URL không hợp lệ');
+    }
+    const maSV = maSVParam.trim();
+    if (maSV.length === 0) {
+      throw new AppError(400, 'Mã sinh viên không được để trống');
+    }
+
+    // Bước 2: Kiểm tra sự tồn tại của sinh viên trong CSDL trước khi thực hiện xóa
+    const svTonTai = await this.repo.findByMaSV(maSV);
+    if (!svTonTai) {
+      // Nếu không tìm thấy mã sinh viên này trong DB -> Trả về mã lỗi HTTP 404
+      throw new AppError(404, 'Không tìm thấy sinh viên');
+    }
+
+    // Bước 3: Gọi Repository để thực hiện xóa bản ghi khỏi SQL Server
+    const daXoa = await this.repo.delete(maSV);
+    if (!daXoa) {
+      // Trường hợp xóa không thành công hoặc bản ghi đã bị xóa bởi tiến trình khác
+      throw new AppError(404, 'Không tìm thấy sinh viên');
+    }
+  }
 }
 
 // Khởi tạo một instance mặc định của Service
@@ -126,4 +228,12 @@ export async function timSinhVienTheoMa(maSV: string): Promise<ISinhVienDTO | un
 
 export async function themSinhVien(input: unknown): Promise<ISinhVienDTO> {
   return await sinhVienService.themSinhVien(input);
+}
+
+export async function capNhatSinhVien(maSV: string, input: unknown): Promise<ISinhVienDTO> {
+  return await sinhVienService.capNhatSinhVien(maSV, input);
+}
+
+export async function xoaSinhVien(maSV: string): Promise<void> {
+  return await sinhVienService.xoaSinhVien(maSV);
 }

@@ -14,6 +14,12 @@ export interface ISinhVienRepository {
 
   // Lưu một sinh viên mới vào cơ sở dữ liệu
   create(sinhVien: ISinhVienDTO): Promise<ISinhVienDTO>;
+
+  // Cập nhật thông tin sinh viên theo maSV (trả về DTO sau khi cập nhật hoặc undefined nếu không tìm thấy)
+  update(maSV: string, updateData: { hoTen: string; email: string; maLop: string }): Promise<ISinhVienDTO | undefined>;
+
+  // Xóa một sinh viên khỏi cơ sở dữ liệu theo mã số maSV (trả về true nếu xóa thành công, false nếu không tìm thấy)
+  delete(maSV: string): Promise<boolean>;
 }
 
 // 2. Class SequelizeSinhVienRepository: Triển khai interface tương tác trực tiếp với SQL Server qua Sequelize
@@ -64,6 +70,47 @@ export class SequelizeSinhVienRepository implements ISinhVienRepository {
       email: created.email,
       maLop: created.maLop
     };
+  }
+
+  // Cập nhật thông tin sinh viên theo maSV trong SQL Server
+  public async update(
+    maSV: string,
+    updateData: { hoTen: string; email: string; maLop: string }
+  ): Promise<ISinhVienDTO | undefined> {
+    // 1. Tìm bản ghi sinh viên theo mã Primary Key
+    const record = await SinhVien.findByPk(maSV);
+    if (!record) {
+      return undefined;
+    }
+
+    // 2. Thực hiện cập nhật các trường mới vào cơ sở dữ liệu
+    await record.update({
+      hoTen: updateData.hoTen,
+      email: updateData.email,
+      maLop: updateData.maLop
+    });
+
+    // 3. Trả về DTO mới nhất sau khi cập nhật thành công
+    return {
+      maSV: record.maSV,
+      hoTen: record.hoTen,
+      email: record.email,
+      maLop: record.maLop
+    };
+  }
+
+  // Xóa bản ghi sinh viên khỏi cơ sở dữ liệu SQL Server theo maSV
+  public async delete(maSV: string): Promise<boolean> {
+    // 1. Tìm bản ghi sinh viên theo khóa chính maSV
+    const record = await SinhVien.findByPk(maSV);
+    if (!record) {
+      // Không tìm thấy bản ghi để xóa
+      return false;
+    }
+
+    // 2. Thực hiện xóa bản ghi khỏi CSDL
+    await record.destroy();
+    return true;
   }
 }
 

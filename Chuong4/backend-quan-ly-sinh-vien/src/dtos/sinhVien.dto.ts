@@ -12,3 +12,16 @@ export interface ISinhVienDTO {
   // Mã lớp học mà sinh viên đang theo học (ví dụ: "25CT114"), kiểu chuỗi (string)
   maLop: string;
 }
+
+// Định nghĩa interface ISinhVienUpdateDTO cho dữ liệu body khi thực hiện PUT cập nhật (không chứa maSV vì maSV lấy từ URL)
+export interface ISinhVienUpdateDTO {
+  // Họ và tên cập nhật mới của sinh viên
+  hoTen: string;
+
+  // Địa chỉ email cập nhật mới của sinh viên
+  email: string;
+
+  // Mã lớp cập nhật mới của sinh viên
+  maLop: string;
+}
+
