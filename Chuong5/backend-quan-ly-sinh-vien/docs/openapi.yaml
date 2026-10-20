@@ -1,0 +1,241 @@
+# ==============================================================================
+# BƯỚC 5: TÀI LIỆU ĐẶC TẢ API QUẢN LÝ SINH VIÊN (OPENAPI 3.0.3)
+# File: docs/openapi.yaml
+# ==============================================================================
+
+openapi: 3.0.3
+info:
+  title: 'API Quản lý sinh viên'
+  version: '1.0.0'
+  description: 'RESTful CRUD SinhVien - thực hành Buổi 5.'
+servers:
+  - url: /
+    description: 'Cùng host và port với Express'
+tags:
+  - name: SinhVien
+    description: 'Quản lý sinh viên'
+paths:
+  /api/v1/sinh-vien:
+    get:
+      tags: [SinhVien]
+      summary: 'Lấy danh sách sinh viên'
+      operationId: getDanhSachSinhVien
+      responses:
+        '200':
+          description: 'Thành công, có thể trả danh sách rỗng'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienListResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags: [SinhVien]
+      summary: 'Thêm sinh viên mới'
+      operationId: taoSinhVien
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SinhVien'
+      responses:
+        '201':
+          description: 'Tạo sinh viên thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /api/v1/sinh-vien/{maSV}:
+    parameters:
+      - $ref: '#/components/parameters/MaSV'
+    get:
+      tags: [SinhVien]
+      summary: 'Lấy sinh viên theo mã'
+      operationId: getSinhVienTheoMa
+      responses:
+        '200':
+          description: 'Tìm thấy sinh viên'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags: [SinhVien]
+      summary: 'Cập nhật thông tin sinh viên'
+      operationId: capNhatSinhVien
+      description: 'Gửi đủ hoTen, email, maLop; maSV lấy từ URL.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SinhVienUpdate'
+      responses:
+        '200':
+          description: 'Cập nhật thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      tags: [SinhVien]
+      summary: 'Xóa sinh viên theo mã'
+      operationId: xoaSinhVien
+      responses:
+        '200':
+          description: 'Xóa thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+          description: 'Không tìm thấy sinh viên'
+        '500':
+          $ref: '#/components/responses/InternalError'
+components:
+  parameters:
+    MaSV:
+      name: maSV
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      example: 'SV003'
+  schemas:
+    # --------------------------------------------------------------------------
+    # Định nghĩa cấu trúc đối tượng lỗi xác thực chi tiết (ValidationIssue)
+    # --------------------------------------------------------------------------
+    ValidationIssue:
+      # Kiểu dữ liệu là object
+      type: object
+      # Bắt buộc phải có cả 2 trường: field và message
+      required: [field, message]
+      # Khai báo các thuộc tính bên trong đối tượng lỗi
+      properties:
+        # Tên trường dữ liệu bị vi phạm (ví dụ: 'email', 'hoTen', hoặc 'body')
+        field: { type: string, example: email }
+        # Nội dung thông báo lỗi cụ thể cho trường đó
+        message: { type: string, example: Email không hợp lệ }
+
+    # Định nghĩa Schema đầy đủ cho thực thể SinhVien (dùng cho POST request)
+    SinhVien:
+      type: object
+      additionalProperties: false
+      required: [maSV, hoTen, email, maLop]
+      properties:
+        maSV: {type: string, minLength: 1, example: 'SV003'}
+        hoTen: {type: string, minLength: 1, example: 'Ngọc Mai'}
+        email: {type: string, format: email, example: 'ngocmai@example.com'}
+        maLop: {type: string, minLength: 1, example: '25CT114'}
+
+    # Định nghĩa Schema cập nhật sinh viên (dùng cho PUT request body)
+    SinhVienUpdate:
+      type: object
+      additionalProperties: false
+      required: [hoTen, email, maLop]
+      properties:
+        hoTen: {type: string, minLength: 1, example: 'Ngọc Mai Updated'}
+        email: {type: string, format: email, example: 'ngocmai@example.com'}
+        maLop: {type: string, minLength: 1, example: '25CT114'}
+
+    # Định nghĩa cấu trúc phản hồi khi lấy hoặc tạo một sinh viên thành công
+    SinhVienResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: {type: boolean, enum: [true], example: true}
+        message: {type: string, example: 'Thao tác thành công'}
+        data:
+          $ref: '#/components/schemas/SinhVien'
+
+    # Định nghĩa cấu trúc phản hồi danh sách sinh viên
+    SinhVienListResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: {type: boolean, enum: [true], example: true}
+        message: {type: string, example: 'Lấy danh sách thành công'}
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SinhVien'
+
+    # Định nghĩa cấu trúc phản hồi khi xóa sinh viên
+    DeleteResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success: {type: boolean, enum: [true], example: true}
+        message: {type: string, example: 'Xóa sinh viên thành công'}
+
+    # --------------------------------------------------------------------------
+    # Định nghĩa cấu trúc phản hồi lỗi dùng chung (ErrorResponse)
+    # Đã cập nhật bổ sung trường errors cho lỗi Validation từ Zod
+    # --------------------------------------------------------------------------
+    ErrorResponse:
+      # Kiểu dữ liệu là object
+      type: object
+      # Các trường bắt buộc tối thiểu phải có
+      required: [success, message, data]
+      # Khai báo các thuộc tính phản hồi lỗi
+      properties:
+        # success luôn là false đối với các response báo lỗi
+        success: {type: boolean, enum: [false], example: false}
+        # Thông báo lỗi chung (ví dụ: 'Dữ liệu đầu vào không hợp lệ')
+        message: {type: string, example: 'Dữ liệu đầu vào không hợp lệ'}
+        # data luôn trả về null khi có lỗi
+        data: {type: object, nullable: true, example: null}
+        # errors: Danh sách mảng chứa chi tiết các trường bị lỗi validation (nếu có)
+        errors:
+          # Kiểu dữ liệu là mảng (array)
+          type: array
+          # Mô tả ý nghĩa của trường
+          description: Chi tiết lỗi Validation (nếu có)
+          # Định nghĩa cấu trúc từng phần tử trong mảng
+          items:
+            # Tham chiếu tới cấu trúc ValidationIssue đã định nghĩa ở trên
+            $ref: '#/components/schemas/ValidationIssue'
+  responses:
+    BadRequest:
+      description: 'Dữ liệu đầu vào không hợp lệ'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: 'Không tìm thấy sinh viên'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: 'Mã sinh viên đã tồn tại'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: 'Lỗi ngoài dự kiến trên server'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

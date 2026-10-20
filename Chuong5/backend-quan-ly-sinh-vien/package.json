@@ -1,0 +1,38 @@
+{
+  "name": "backend-quan-ly-sinh-vien",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "check:db": "tsx src/scripts/check-db.ts",
+    "test:api": "tsx src/scripts/test-crud-api.ts",
+    "test:v12": "tsx src/scripts/test-v01-v12.ts"
+  },
+
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "js-yaml": "^5.4.3",
+    "morgan": "^1.12.1",
+    "sequelize": "^6.37.8",
+    "swagger-ui-express": "^5.0.1",
+    "tedious": "^20.3.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^22.20.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "openapi-types": "^12.1.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

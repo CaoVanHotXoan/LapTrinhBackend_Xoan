@@ -1,0 +1,603 @@
+{
+  "info": {
+    "_postman_id": "c5a01724-4d8b-4b2a-89a1-buoi6validation",
+    "name": "Buoi6 - Validation & Morgan (V01 - V12)",
+    "description": "Bộ 12 Test Cases bắt buộc kiểm thử Zod Validation và Morgan Logging theo đúng chuẩn Giáo trình Chương 05 (trang 15). Có thể nhập trực tiếp vào Postman để chạy tự động.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string",
+      "description": "Địa chỉ cơ sở của server Express"
+    },
+    {
+      "key": "maSV",
+      "value": "SV006",
+      "type": "string",
+      "description": "Mã sinh viên dùng thử nghiệm trong các ca test"
+    },
+    {
+      "key": "missingMaSV",
+      "value": "SV9999",
+      "type": "string",
+      "description": "Mã sinh viên chắc chắn không tồn tại để kiểm tra mã 404"
+    }
+  ],
+  "item": [
+    {
+      "name": "V01 - POST SV006 đủ 4 trường hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V01: Kiểm tra tạo mới sinh viên hợp lệ thành công",
+              "pm.test('V01 - Status code phải là 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "// Kiểm tra cấu trúc phản hồi thành công",
+              "pm.test('V01 - success phải là true và data có đúng maSV SV006', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.maSV).to.eql('SV006');",
+              "    pm.expect(body.data.hoTen).to.eql('Nguyễn Minh An');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV006\",\n  \"hoTen\": \"Nguyễn Minh An\",\n  \"email\": \"minhan@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "V01: POST đủ 4 trường maSV, hoTen, email, maLop -> Kỳ vọng 201 Created."
+      },
+      "response": []
+    },
+    {
+      "name": "V02 - POST thiếu hoTen, mã SV khác",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V02: Chặn request POST khi thiếu trường bắt buộc hoTen",
+              "pm.test('V02 - Status code phải là 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "// Kiểm tra cấu trúc lỗi và mảng errors chỉ ra trường hoTen",
+              "pm.test('V02 - errors phải chứa thông báo vi phạm trường hoTen', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.data).to.eql(null);",
+              "    pm.expect(body.errors).to.be.an('array');",
+              "    pm.expect(body.errors.some(e => e.field === 'hoTen')).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV007\",\n  \"email\": \"sv007@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "V02: POST thiếu trường hoTen -> Kỳ vọng 400 Bad Request, errors có field=hoTen."
+      },
+      "response": []
+    },
+    {
+      "name": "V03 - POST email không đúng định dạng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V03: Chặn request POST khi email sai định dạng",
+              "pm.test('V03 - Status code phải là 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "// Kiểm tra errors có field=email",
+              "pm.test('V03 - errors có field là email và message phù hợp', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors.some(e => e.field === 'email')).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV008\",\n  \"hoTen\": \"Lê Hoài Nam\",\n  \"email\": \"email-sai-dinh-dang\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "V03: POST email không hợp lệ -> Kỳ vọng 400, errors có field=email."
+      },
+      "response": []
+    },
+    {
+      "name": "V04 - POST có thêm role admin (chặn trường lạ)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V04: Kiểm tra tính năng .strict() của Zod từ chối thuộc tính ngoài schema",
+              "pm.test('V04 - Status code phải là 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "// Kiểm tra thông báo từ chối thuộc tính lạ role",
+              "pm.test('V04 - Từ chối thuộc tính lạ role', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV009\",\n  \"hoTen\": \"Vũ Hải Đăng\",\n  \"email\": \"haidang@example.com\",\n  \"maLop\": \"25CT114\",\n  \"role\": \"admin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "V04: POST gửi thêm trường lạ 'role' -> Zod strict() chặn lại trả về 400."
+      },
+      "response": []
+    },
+    {
+      "name": "V05 - PUT SV006 thiếu email",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V05: PUT cập nhật thiếu trường bắt buộc email",
+              "pm.test('V05 - Status code phải là 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "// Kiểm tra trường lỗi email trong errors",
+              "pm.test('V05 - errors báo lỗi thiếu email', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors.some(e => e.field === 'email')).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Nguyễn Minh An Đổi Tên Lỗi\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV006",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV006"
+          ]
+        },
+        "description": "V05: PUT thiếu email -> Kỳ vọng 400 Bad Request, giữ nguyên dữ liệu cũ."
+      },
+      "response": []
+    },
+    {
+      "name": "V06 - PUT SV006 đủ 3 trường",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V06: PUT cập nhật hợp lệ đầy đủ 3 trường",
+              "pm.test('V06 - Status code phải là 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Kiểm tra dữ liệu mới đã được cập nhật",
+              "pm.test('V06 - Dữ liệu hoTen và email mới được cập nhật', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.hoTen).to.eql('Nguyễn Minh An Updated');",
+              "    pm.expect(body.data.email).to.eql('an.updated@example.com');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Nguyễn Minh An Updated\",\n  \"email\": \"an.updated@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV006",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV006"
+          ]
+        },
+        "description": "V06: PUT đủ 3 trường -> Kỳ vọng 200 OK, GET thấy dữ liệu mới."
+      },
+      "response": []
+    },
+    {
+      "name": "V07 - PUT SV006 email sai kiểu (số)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V07: PUT sai kiểu dữ liệu email (gửi số thay vì chuỗi)",
+              "pm.test('V07 - Status code phải là 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "// Kiểm tra Zod bắt lỗi sai kiểu của trường email",
+              "pm.test('V07 - Bắt lỗi type email sai', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors.some(e => e.field === 'email')).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Nguyễn Minh An\",\n  \"email\": 123456,\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV006",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV006"
+          ]
+        },
+        "description": "V07: PUT email là số 123456 -> Kỳ vọng 400 Bad Request."
+      },
+      "response": []
+    },
+    {
+      "name": "V08 - POST maSV đã tồn tại",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V08: Kiểm tra tầng nghiệp vụ/Database bắt trùng mã sinh viên",
+              "pm.test('V08 - Status code phải là 409 Conflict', function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "// Kiểm tra thông điệp báo trùng mã",
+              "pm.test('V08 - Phản hồi thất bại do trùng khóa chính maSV', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV006\",\n  \"hoTen\": \"Nguyễn Minh An Trùng\",\n  \"email\": \"trung@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "V08: POST SV006 đã tồn tại -> Kỳ vọng 409 Conflict (Tầng Service/Database xử lý)."
+      },
+      "response": []
+    },
+    {
+      "name": "V09 - PUT mã không tồn tại, body hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V09: PUT với body hợp lệ nhưng mã sinh viên không tồn tại trong CSDL",
+              "pm.test('V09 - Status code phải là 404 Not Found', function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "// Kiểm tra phản hồi lỗi",
+              "pm.test('V09 - Phản hồi không tìm thấy sinh viên', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Không Tồn Tại\",\n  \"email\": \"khongtontai@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/{{missingMaSV}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "{{missingMaSV}}"
+          ]
+        },
+        "description": "V09: PUT SV9999 không tồn tại -> Kỳ vọng 404 Not Found."
+      },
+      "response": []
+    },
+    {
+      "name": "V10 - GET danh sách sinh viên",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V10: Kiểm tra API GET danh sách sau khi đã qua các bước thêm/sửa",
+              "pm.test('V10 - Status code phải là 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Xác nhận data vẫn là mảng danh sách",
+              "pm.test('V10 - data trả về phải là một mảng Array', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "V10: GET danh sách sinh viên -> Kỳ vọng 200 OK, data là mảng."
+      },
+      "response": []
+    },
+    {
+      "name": "V11 - GET health check và kiểm tra logs",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V11: Gọi endpoint gốc kiểm tra Morgan ghi nhận dòng log mới",
+              "pm.test('V11 - Status code phải là 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Kiểm tra phản hồi server hoạt động",
+              "pm.test('V11 - Server đang hoạt động tốt', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "V11: GET / -> Kỳ vọng 200 OK, mở access.log thấy dòng log mới."
+      },
+      "response": []
+    },
+    {
+      "name": "V12 - Restart server và GET kiểm tra access.log ghi nối",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// V12: Gọi lại GET sau khi khởi động lại server để chứng minh log được ghi nối",
+              "pm.test('V12 - Status code phải là 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "// Kiểm tra phản hồi",
+              "pm.test('V12 - Server sẵn sàng sau restart', function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "V12: Restart server, gọi lại GET / -> Kỳ vọng 200 OK, access.log ghi nối (append)."
+      },
+      "response": []
+    }
+  ]
+}
