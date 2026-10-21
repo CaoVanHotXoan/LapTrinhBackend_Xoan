@@ -1,0 +1,659 @@
+{
+  "info": {
+    "_postman_id": "c6a01724-4d8b-4b2a-89a1-bangb-rbac",
+    "name": "Buoi7 - Bảng B: Phân quyền RBAC SinhVien (B01 - B12)",
+    "description": "Bảng test 12 ca kiểm thử B01 - B12 cho Middleware isAuth và isAdmin trên các Route SinhVien.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN0dWRlbnQiLCJpYXQiOjE3OTI1NTA0NDYsImV4cCI6MTc5MjYzNjg0Nn0.leuVzvhiuBnjE8sKMMm2MrUJsHHBHyEfWygixJmRcCs",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0Iiwicm9sZSI6ImFkbWluIiwiaWF0IjoxNzkyNTUwNDQ2LCJleHAiOjE3OTI2MzY4NDZ9.oLboqeuNfr9iiy73ZzQe2790aaG9fPTx_VqgCI6we5M",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Setup: Login Admin (Lấy và lưu adminToken)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Tự động lưu adminToken vào môi trường Postman",
+              "pm.test(\"Setup Admin - Đăng nhập thành công 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "const body = pm.response.json();",
+              "pm.environment.set(\"adminToken\", body.data.accessToken);",
+              "pm.collectionVariables.set(\"adminToken\", body.data.accessToken);",
+              "console.log(\"Đã cập nhật adminToken mới:\", body.data.accessToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin.lab@example.com\",\n  \"password\": \"Admin@123456\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Chạy request này để tự động cập nhật token Admin vào biến {{adminToken}}."
+      }
+    },
+    {
+      "name": "B01 - GET danh sách, không JWT (Public)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B01: GET danh sách sinh viên là PUBLIC",
+              "pm.test(\"B01 - Status code phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"B01 - data trả về vẫn là một mảng sinh viên\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data).to.be.an(\"array\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "B01: GET danh sách không cần token -> Kỳ vọng 200 OK (Public)."
+      }
+    },
+    {
+      "name": "B02 - POST SinhVien, không JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B02: POST nặc danh bị chặn 401",
+              "pm.test(\"B02 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"B02 - Không INSERT bản ghi mới vào CSDL\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV099\",\n  \"hoTen\": \"Sinh Vien Nac Danh\",\n  \"email\": \"nacdanh@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "B02: POST sinh viên không có JWT -> Kỳ vọng 401 Unauthorized."
+      }
+    },
+    {
+      "name": "B03 - PUT SinhVien, token không hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B03: Token giả mạo khi sửa sinh viên",
+              "pm.test(\"B03 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"B03 - Giá trị cũ trong DB không bị đổi\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer token-sai-dinh-dang-12345"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Ten Hacker Sua\",\n  \"email\": \"hacker@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV001",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV001"
+          ]
+        },
+        "description": "B03: PUT sinh viên với token không hợp lệ -> Kỳ vọng 401 Unauthorized."
+      }
+    },
+    {
+      "name": "B04 - DELETE SinhVien, JWT student (Bị chặn 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B04: Sinh viên không được phép xóa dữ liệu",
+              "pm.test(\"B04 - Status code phải là 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test(\"B04 - SinhVien vẫn tồn tại, không bị xóa khỏi CSDL\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.message).to.include(\"yêu cầu quyền quản trị\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV001",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV001"
+          ]
+        },
+        "description": "B04: DELETE SinhVien bằng tài khoản student -> Kỳ vọng 403 Forbidden."
+      }
+    },
+    {
+      "name": "B05 - POST SinhVien, JWT student (Bị chặn 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B05: Sinh viên không có quyền thêm mới sinh viên",
+              "pm.test(\"B05 - Status code phải là 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test(\"B05 - Không INSERT bản ghi mới vào DB\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV099\",\n  \"hoTen\": \"Sinh Vien Boi Student\",\n  \"email\": \"student099@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "B05: POST SinhVien bằng tài khoản student -> Kỳ vọng 403 Forbidden."
+      }
+    },
+    {
+      "name": "B06 - PUT SinhVien, JWT student (Bị chặn 403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B06: Sinh viên không có quyền cập nhật sinh viên",
+              "pm.test(\"B06 - Status code phải là 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test(\"B06 - Không UPDATE dữ liệu trong CSDL\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Minh Nhat Sua Boi Student\",\n  \"email\": \"minhnhat@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV001",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV001"
+          ]
+        },
+        "description": "B06: PUT SinhVien bằng tài khoản student -> Kỳ vọng 403 Forbidden."
+      }
+    },
+    {
+      "name": "B07 - POST SinhVien hợp lệ, JWT admin (Ghi thật CSDL)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B07: Admin thêm mới sinh viên SV088 thành công",
+              "pm.test(\"B07 - Status code phải là 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"B07 - GET lại đúng bản ghi mới tạo trong DB\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.maSV).to.eql(\"SV088\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV088\",\n  \"hoTen\": \"Nguyen Van Admin Test\",\n  \"email\": \"admintest@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "B07: POST SinhVien hợp lệ với JWT admin -> Kỳ vọng 201 Created."
+      }
+    },
+    {
+      "name": "B08 - PUT SinhVien hợp lệ, JWT admin (Cập nhật thật)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B08: Admin cập nhật thông tin SV088",
+              "pm.test(\"B08 - Status code phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"B08 - GET lại thấy thay đổi họ tên mới\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.hoTen).to.eql(\"Nguyen Van Admin Updated\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"hoTen\": \"Nguyen Van Admin Updated\",\n  \"email\": \"admintest@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV088",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV088"
+          ]
+        },
+        "description": "B08: PUT SinhVien SV088 hợp lệ với JWT admin -> Kỳ vọng 200 OK."
+      }
+    },
+    {
+      "name": "B09 - DELETE SinhVien, JWT admin (Xóa thật khỏi DB)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B09: Admin xóa sinh viên SV088",
+              "pm.test(\"B09 - Status code phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"B09 - Thông báo xóa thành công\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.message).to.eql(\"Xóa sinh viên thành công\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV088",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV088"
+          ]
+        },
+        "description": "B09: DELETE SinhVien SV088 bằng JWT admin -> Kỳ vọng 200 OK."
+      }
+    },
+    {
+      "name": "B10 - Admin POST body sai Zod (Validation vẫn chạy cho Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B10: Admin gửi dữ liệu sai vẫn bị Zod chặn",
+              "pm.test(\"B10 - Status code phải là 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"B10 - Trường errors chỉ ra lỗi vi phạm chi tiết\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors).to.be.an(\"array\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV090\",\n  \"email\": \"sai-dinh-dang\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "B10: Admin gửi body thiếu trường và email sai định dạng -> Kỳ vọng 400 Bad Request."
+      }
+    },
+    {
+      "name": "B11 - Admin POST mã bị trùng (Báo lỗi 409 Conflict)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B11: Trùng khóa chính khi thêm",
+              "pm.test(\"B11 - Status code phải là 409 Conflict\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"B11 - Không tạo bản ghi trùng và báo mã sinh viên đã tồn tại\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.message).to.eql(\"Mã sinh viên đã tồn tại\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"maSV\": \"SV001\",\n  \"hoTen\": \"Minh Nhat Trung\",\n  \"email\": \"trung@example.com\",\n  \"maLop\": \"25CT114\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ]
+        },
+        "description": "B11: Admin thêm sinh viên với maSV=SV001 đã tồn tại -> Kỳ vọng 409 Conflict."
+      }
+    },
+    {
+      "name": "B12 - DELETE cùng mã lần thứ 2 bằng Admin (Báo lỗi 404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// B12: Xóa mã không còn tồn tại trả về 404",
+              "pm.test(\"B12 - Status code phải là 404 Not Found\", function () {",
+              "    pm.response.to.have.status(404);",
+              "});",
+              "",
+              "pm.test(\"B12 - Không còn dữ liệu để xóa\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.message).to.eql(\"Không tìm thấy sinh viên\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{adminToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV088",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV088"
+          ]
+        },
+        "description": "B12: Admin xóa lại SV088 lần thứ hai -> Kỳ vọng 404 Not Found (đã bị xóa trước đó)."
+      }
+    }
+  ]
+}

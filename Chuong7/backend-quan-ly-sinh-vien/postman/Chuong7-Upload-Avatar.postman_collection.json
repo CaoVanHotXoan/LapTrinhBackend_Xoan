@@ -1,0 +1,617 @@
+{
+  "info": {
+    "_postman_id": "chuong7-upload-avatar-u01-u12-collection",
+    "name": "Chương 07 - Upload Avatar & Kiểm Thử Multer (U01 - U12)",
+    "description": "Bộ sưu tập kiểm thử Postman hoàn chỉnh gồm 12 ca kiểm thử U01 - U12 theo đúng ma trận giáo trình Chương 07 (Trang 17). Bao gồm kiểm thử Multer, Magic Bytes, kích thước 2MB, JWT Authentication và lưu trữ SQL Server.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "lastAvatarUrl",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "00 - Đăng nhập Student lấy Bearer Token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('00 - Đăng nhập thành công trả về Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(true);",
+              "    pm.expect(json.data.accessToken).to.be.a('string');",
+              "    pm.collectionVariables.set('studentToken', json.data.accessToken);",
+              "    pm.environment.set('studentToken', json.data.accessToken);",
+              "    console.log('✅ Đã lưu studentToken thành công:', json.data.accessToken.slice(0, 20) + '...');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"student.lab@example.com\",\n  \"password\": \"Student@123456\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "login"]
+        },
+        "description": "Đăng nhập với tài khoản sinh viên student.lab@example.com để trích xuất accessToken và tự động lưu vào biến môi trường {{studentToken}}."
+      }
+    },
+    {
+      "name": "U01 - Avatar PNG hợp lệ + Student JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U01 - Upload ảnh PNG hợp lệ trả về HTTP 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('U01 - Phản hồi có success=true và đường dẫn avatarUrl hợp lệ', function () {",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(true);",
+              "    pm.expect(json.data).to.be.an('object');",
+              "    pm.expect(json.data.avatarUrl).to.be.a('string');",
+              "    pm.expect(json.data.avatarUrl.startsWith('/uploads/')).to.be.true;",
+              "    pm.collectionVariables.set('lastAvatarUrl', json.data.avatarUrl);",
+              "    pm.environment.set('lastAvatarUrl', json.data.avatarUrl);",
+              "    console.log('✅ U01 PASS - Avatar URL:', json.data.avatarUrl);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.png",
+              "description": "Chọn tệp postman/test-assets/valid-avatar.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Upload tệp ảnh PNG chuẩn với Bearer Token hợp lệ. Kỳ vọng HTTP 200 OK."
+      }
+    },
+    {
+      "name": "U02 - Avatar JPEG hợp lệ + Phục vụ ảnh tĩnh",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U02 - Upload ảnh JPEG hợp lệ trả về HTTP 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.data.avatarUrl.endsWith('.jpg') || json.data.avatarUrl.endsWith('.jpeg')).to.be.true;",
+              "    pm.collectionVariables.set('lastAvatarUrl', json.data.avatarUrl);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.jpg",
+              "description": "Chọn tệp postman/test-assets/valid-avatar.jpg"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Upload tệp ảnh JPEG chuẩn. Kỳ vọng HTTP 200 OK."
+      }
+    },
+    {
+      "name": "U02.1 - Kiểm tra xem ảnh tĩnh tải được từ trình duyệt",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U02.1 - Express static phục vụ ảnh tĩnh thành công - Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.headers.get('Content-Type')).to.include('image/');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}{{lastAvatarUrl}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["uploads", ":filename"]
+        },
+        "description": "Truy cập đường dẫn tĩnh công khai GET /uploads/<filename> để chứng minh Express phục vụ ảnh được."
+      }
+    },
+    {
+      "name": "U03 - Không có Authorization Header",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U03 - Chặn từ chối khi không có token - Status 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Gửi request upload nhưng không có Header Authorization. isAuth phải chặn trước khi vào Multer."
+      }
+    },
+    {
+      "name": "U04 - JWT sai hoặc hết hạn",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U04 - Chặn khi JWT sai chữ ký hoặc giả mạo - Status 401 Unauthorized', function () {",
+              "    pm.response.to.have.status(401);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer token.gia.mao.sai.chu.ky.123456"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Gửi token có chữ ký sai. jwt.verify phải ném lỗi và từ chối với status 401."
+      }
+    },
+    {
+      "name": "U05 - Body thiếu file avatar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U05 - Báo lỗi khi request không đính kèm file - Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Body multipart nhưng không có file nào được đính kèm. Controller kiểm tra !req.file và trả 400."
+      }
+    },
+    {
+      "name": "U06 - Field name photo thay vì avatar",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U06 - Bắt lỗi LIMIT_UNEXPECTED_FILE khi sai tên trường - Status 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "photo",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.png",
+              "description": "Cố tình dùng field name 'photo' thay vì 'avatar'"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Gửi tên trường 'photo' thay vì 'avatar'. Multer upload.single('avatar') sẽ từ chối với status 400."
+      }
+    },
+    {
+      "name": "U07 - Kích thước tập tin > 2MB",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U07 - Bắt LIMIT_FILE_SIZE trả mã HTTP 413 Payload Too Large', function () {",
+              "    pm.response.to.have.status(413);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "    pm.expect(json.message).to.include('2MB');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/oversized-avatar.png",
+              "description": "Chọn tệp 2.5MB postman/test-assets/oversized-avatar.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Gửi tệp 2.5MB vượt quá giới hạn 2MB. Multer ném LIMIT_FILE_SIZE và middleware chuyển thành status 413."
+      }
+    },
+    {
+      "name": "U08 - Tệp văn bản TXT đổi tên thành .png",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U08 - Phát hiện sai Magic Bytes nội dung thực - Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "    pm.expect(json.message).to.include('chữ ký nội dung');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/fake-avatar.png",
+              "description": "Chọn tệp văn bản đổi đuôi postman/test-assets/fake-avatar.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Tệp text giả mạo đuôi .png. Middleware kiểm tra Magic Bytes (89 50 4E 47), xóa file tạm và từ chối 400."
+      }
+    },
+    {
+      "name": "U09 - Đuôi file .gif hoặc MIME không chấp nhận",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U09 - Bộ lọc sơ bộ từ chối định dạng GIF - Status 400 Bad Request', function () {",
+              "    pm.response.to.have.status(400);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/invalid-format.gif",
+              "description": "Chọn tệp postman/test-assets/invalid-format.gif"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Gửi file đuôi .gif. Bộ lọc fileFilter từ chối ngay từ đầu với status 400."
+      }
+    },
+    {
+      "name": "U10 - Upload hai lần cùng tài khoản",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U10 - Upload lần 2 cấp URL mới duy nhất - Status 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const json = pm.response.json();",
+              "    const oldUrl = pm.collectionVariables.get('lastAvatarUrl');",
+              "    pm.expect(json.data.avatarUrl).to.not.eql(oldUrl);",
+              "    pm.collectionVariables.set('lastAvatarUrl', json.data.avatarUrl);",
+              "    console.log('✅ U10 PASS - URL mới:', json.data.avatarUrl);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Upload ảnh lần 2 cho cùng tài khoản. Server sinh tên ngẫu nhiên UUID v4 không ghi đè bất ngờ."
+      }
+    },
+    {
+      "name": "U11 - Client gửi kèm userId người khác",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U11 - Thành công nhưng tuyệt đối bỏ qua userId lạ trong body - Status 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.success).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "avatar",
+              "type": "file",
+              "src": "postman/test-assets/valid-avatar.png"
+            },
+            {
+              "key": "userId",
+              "value": "9999",
+              "type": "text",
+              "description": "Cố tình gửi userId lạ để tấn công sửa chéo tài khoản"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/me/avatar",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "me", "avatar"]
+        },
+        "description": "Client gửi userId=9999 trong body. Backend bỏ qua req.body.userId, chỉ lấy id từ req.user (từ JWT)."
+      }
+    },
+    {
+      "name": "U12 - Kiểm tra GET Profile xác minh CSDL",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('U12 - GET Profile trả về avatarUrl mới từ SQL Server - Status 200', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const json = pm.response.json();",
+              "    pm.expect(json.data.avatarUrl).to.eql(pm.collectionVariables.get('lastAvatarUrl'));",
+              "    pm.expect(json.data.passwordHash).to.be.undefined;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "auth", "profile"]
+        },
+        "description": "Gọi GET /api/auth/profile xác nhận avatarUrl lưu bền vững trong CSDL SQL Server và không lộ passwordHash."
+      }
+    }
+  ]
+}
