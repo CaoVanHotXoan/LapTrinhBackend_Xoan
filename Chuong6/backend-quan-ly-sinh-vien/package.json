@@ -1,0 +1,53 @@
+{
+  "name": "backend-quan-ly-sinh-vien",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "check:db": "tsx src/scripts/check-db.ts",
+    "test:api": "tsx src/scripts/test-crud-api.ts",
+    "test:v12": "tsx src/scripts/test-v01-v12.ts",
+    "test:step2": "tsx src/scripts/test-step2-register.ts",
+    "test:step3": "tsx src/scripts/test-step3-login.ts",
+    "test:step4": "tsx src/scripts/test-step4-jwt.ts",
+    "test:step5": "tsx src/scripts/test-step5-isauth.ts",
+    "test:step6": "tsx src/scripts/test-step6-isadmin.ts",
+    "test:step7": "tsx src/scripts/test-step7-rbac.ts",
+    "seed:admin": "tsx src/scripts/seed-admin.ts",
+    "test:step9": "tsx src/scripts/test-step9-swagger.ts",
+    "generate:postman": "tsx src/scripts/generate-postman.ts",
+    "test:step10": "tsx src/scripts/test-step10-postman.ts",
+    "clean:user": "tsx src/scripts/clean-test-user.ts",
+    "test:step11": "tsx src/scripts/test-step11-security.ts"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "js-yaml": "^5.4.3",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
+    "sequelize": "^6.37.8",
+    "swagger-ui-express": "^5.0.1",
+    "tedious": "^20.3.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/js-yaml": "^4.0.9",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^22.20.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "openapi-types": "^12.1.3",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}

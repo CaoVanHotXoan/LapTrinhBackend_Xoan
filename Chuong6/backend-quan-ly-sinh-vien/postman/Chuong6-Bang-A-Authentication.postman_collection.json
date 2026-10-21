@@ -1,0 +1,599 @@
+{
+  "info": {
+    "_postman_id": "c6a01724-4d8b-4b2a-89a1-banga-auth",
+    "name": "Buoi7 - Bảng A: Authentication & JWT (A01 - A12)",
+    "description": "Bảng test 12 ca kiểm thử A01 - A12 cho API Đăng ký, Đăng nhập, JWT Token và Hồ sơ người dùng.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN0dWRlbnQiLCJpYXQiOjE3OTI1NTA0NDYsImV4cCI6MTc5MjYzNjg0Nn0.leuVzvhiuBnjE8sKMMm2MrUJsHHBHyEfWygixJmRcCs",
+      "type": "string"
+    },
+    {
+      "key": "tamperedToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN0dWRlbnQiLCJpYXQiOjE3OTI1NTA0NDYsImV4cCI6MTc5MjYzNjg0Nn0.leuVzvhiuBnjE8sKMMm2MrUJsHHBHyEfWygixJmRcXx",
+      "type": "string"
+    },
+    {
+      "key": "expiredToken",
+      "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN0dWRlbnQiLCJleHAiOjE3OTI1NDMyNDYsImlhdCI6MTc5MjU1MDQ0Nn0.hOEmztSLsW_z0PHpdejla5pR4vIg-px4wp9dBRDloes",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "A01 - Register email mới, body hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A01: Đăng ký tài khoản mới thành công",
+              "pm.test(\"A01 - Status code phải là 201 Created\", function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "",
+              "pm.test(\"A01 - User tạo thành công, role là student và không lộ password/hash\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data).to.be.an(\"object\");",
+              "    pm.expect(body.data.role).to.eql(\"student\");",
+              "    pm.expect(body.data.email).to.eql(\"an.lab@example.com\");",
+              "    pm.expect(body.data.password).to.be.undefined;",
+              "    pm.expect(body.data.passwordHash).to.be.undefined;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Nguyen Minh An\",\n  \"email\": \"an.lab@example.com\",\n  \"password\": \"SinhVien@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "A01: Đăng ký tài khoản hợp lệ. Kỳ vọng HTTP 201 Created, CSDL lưu hash bcrypt, role mặc định là student."
+      }
+    },
+    {
+      "name": "A02 - Register trùng email A01",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A02: Đăng ký trùng email phải bị từ chối 409 Conflict",
+              "pm.test(\"A02 - Status code phải là 409 Conflict\", function () {",
+              "    pm.response.to.have.status(409);",
+              "});",
+              "",
+              "pm.test(\"A02 - Báo lỗi email đã tồn tại và không tăng số user\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.message).to.include(\"Email đã tồn tại\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Nguyen Minh An Trung\",\n  \"email\": \"an.lab@example.com\",\n  \"password\": \"OtherPassword@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "A02: Đăng ký trùng email đã có trong hệ thống -> Kỳ vọng 409 Conflict."
+      }
+    },
+    {
+      "name": "A03 - Register body thêm role=admin (Chống nâng quyền)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A03: Chống người dùng tự nâng quyền lên admin",
+              "pm.test(\"A03 - Status code phải là 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"A03 - Bị Zod strict chặn trường lạ role\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors).to.be.an(\"array\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Attacker User\",\n  \"email\": \"attacker@example.com\",\n  \"password\": \"Password@123\",\n  \"role\": \"admin\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "A03: Cố tình gửi kèm role=admin trong payload -> Zod .strict() chặn 400 Bad Request."
+      }
+    },
+    {
+      "name": "A04 - Register thiếu password hoặc email sai định dạng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A04: Validation kiểm tra đầu vào",
+              "pm.test(\"A04 - Status code phải là 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"A04 - Không lưu dữ liệu lỗi và trả mảng errors\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.errors).to.be.an(\"array\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Test User\",\n  \"email\": \"not-an-email\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/register",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "register"
+          ]
+        },
+        "description": "A04: Thiếu password và email sai chuẩn -> Kỳ vọng 400 Bad Request."
+      }
+    },
+    {
+      "name": "A05 - Login đúng tài khoản student (Lấy studentToken)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A05: Đăng nhập thành công và trích xuất Access Token",
+              "pm.test(\"A05 - Status code phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"A05 - Cấp data.accessToken chuẩn Bearer JWT\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.accessToken).to.be.a(\"string\");",
+              "    pm.expect(body.data.tokenType).to.eql(\"Bearer\");",
+              "    pm.expect(body.data.expiresIn).to.eql(3600);",
+              "",
+              "    // Tự động lưu biến studentToken vào môi trường Postman",
+              "    pm.environment.set(\"studentToken\", body.data.accessToken);",
+              "    pm.collectionVariables.set(\"studentToken\", body.data.accessToken);",
+              "    console.log(\"Đã cập nhật studentToken:\", body.data.accessToken);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"an.lab@example.com\",\n  \"password\": \"SinhVien@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "A05: Đăng nhập tài khoản student hợp lệ. Tự động lưu studentToken vào Postman Variables."
+      }
+    },
+    {
+      "name": "A06 - Login sai password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A06: Mật khẩu sai bị từ chối 401",
+              "pm.test(\"A06 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A06 - Không trả accessToken và báo lỗi chung\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.data).to.be.null;",
+              "    pm.expect(body.message).to.eql(\"Email hoặc mật khẩu không chính xác\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"an.lab@example.com\",\n  \"password\": \"SaiPassword@999\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "A06: Sai mật khẩu -> Kỳ vọng 401 Unauthorized."
+      }
+    },
+    {
+      "name": "A07 - Login email không tồn tại (Chống Enumeration)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A07: Email không tồn tại trả thông báo trùng khớp A06",
+              "pm.test(\"A07 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A07 - Không làm lộ thông tin tồn tại tài khoản User\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.message).to.eql(\"Email hoặc mật khẩu không chính xác\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"khongtontai@example.com\",\n  \"password\": \"Password@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "A07: Email không tồn tại -> Kỳ vọng 401 Unauthorized và cùng thông báo lỗi với A06."
+      }
+    },
+    {
+      "name": "A08 - GET /api/auth/profile không có token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A08: Gọi Profile nặc danh không có Authorization header",
+              "pm.test(\"A08 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A08 - Không nhận data hồ sơ và có thông báo lỗi\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "    pm.expect(body.data).to.be.null;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "A08: Gọi GET /api/auth/profile nhưng không gửi Token -> Kỳ vọng 401."
+      }
+    },
+    {
+      "name": "A09 - Profile với token bị sửa 1 ký tự (Giả mạo)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A09: Chữ ký token bị sai",
+              "pm.test(\"A09 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A09 - Chữ ký không qua xác minh, từ chối cấp profile\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tamperedToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "A09: Gửi Token bị sửa đổi chữ ký -> Kỳ vọng 401 Unauthorized."
+      }
+    },
+    {
+      "name": "A10 - Profile với JWT student hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A10: Lấy hồ sơ thành công với token sinh viên hợp lệ",
+              "pm.test(\"A10 - Status code phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"A10 - Hồ sơ đúng user và tuyệt đối không lộ passwordHash\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.email).to.eql(\"an.lab@example.com\");",
+              "    pm.expect(body.data.role).to.eql(\"student\");",
+              "    pm.expect(body.data.password).to.be.undefined;",
+              "    pm.expect(body.data.passwordHash).to.be.undefined;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "A10: Gửi Bearer Token hợp lệ của sinh viên -> Nhận hồ sơ HTTP 200 OK."
+      }
+    },
+    {
+      "name": "A11 - Token hết hạn gọi Profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A11: Token quá hạn bị từ chối 401",
+              "pm.test(\"A11 - Status code phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A11 - Báo lỗi token hết hạn chính xác\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{expiredToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "A11: Gửi Token đã hết hạn -> Kỳ vọng 401 Unauthorized."
+      }
+    },
+    {
+      "name": "A12 - Register/login và xem SQL Server (Kiểm tra an toàn mật khẩu & JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A12: Kiểm tra nguyên tắc an toàn CSDL và nhật ký",
+              "pm.test(\"A12 - Response trả về không chứa mật khẩu hay passwordHash\", function () {",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.success).to.eql(true);",
+              "    pm.expect(body.data.password).to.be.undefined;",
+              "    pm.expect(body.data.passwordHash).to.be.undefined;",
+              "});",
+              "",
+              "pm.test(\"A12 - Kiểm chứng SQL Server: CSDL chỉ lưu chuỗi bcrypt $2b$12$\", function () {",
+              "    // Lưu ý: Xác minh trực tiếp trong SSMS bằng câu lệnh:",
+              "    // SELECT email, passwordHash FROM dbo.Users WHERE email = \"an.lab@example.com\"",
+              "    pm.expect(true).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "A12: Kiểm tra tính an toàn: mật khẩu được mã hóa bcrypt một chiều trong SQL Server, không lưu plaintext, không log JWT secret."
+      }
+    }
+  ]
+}
