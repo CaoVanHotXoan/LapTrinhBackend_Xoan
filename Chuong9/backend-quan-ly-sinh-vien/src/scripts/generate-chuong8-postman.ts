@@ -1,0 +1,836 @@
+// ==============================================================================
+// SCRIPT TỰ ĐỘNG SINH POSTMAN COLLECTION CHO CHƯƠNG 08 - BƯỚC 6 (LAB 1: P01 - P17)
+// File: src/scripts/generate-chuong8-postman.ts
+// Mục đích: Khởi tạo file Chuong8_Buoc6_postman.json trong thư mục postman/
+// ==============================================================================
+
+// 1. Import module fs và path từ Node.js
+import fs from 'node:fs';
+import path from 'node:path';
+
+// 2. Định nghĩa cấu trúc Postman Collection v2.1.0
+const collection = {
+  info: {
+    _postman_id: 'chuong8-buoc6-pagination-search-p01-p17',
+    name: 'Chương 08 - Phân Trang & Tìm Kiếm & Hồi Quy (P01 - P17)',
+    description: 'Bộ sưu tập Postman Collection hoàn chỉnh kiểm thử 17 ca P01 - P17 của Lab 1 Chương 08 theo đúng tài liệu giáo trình (Trang 13 - 14). Bao gồm: phân trang thật bằng Sequelize findAndCountAll (OFFSET/FETCH), validate query string với Zod, tìm kiếm LIKE theo họ tên và kiểm thử hồi quy CRUD/JWT.',
+    schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json'
+  },
+  event: [
+    {
+      listen: 'prerequest',
+      script: {
+        type: 'text/javascript',
+        exec: [
+          '// Tự động kiểm tra: Nếu adminToken rỗng thì tự động gọi API login để cấp token Admin ngay lập tức',
+          'const token = pm.variables.get("adminToken");',
+          'if (!token || token.trim() === "") {',
+          '    const baseUrl = pm.variables.get("baseUrl") || "http://localhost:5000";',
+          '    const email = pm.variables.get("adminEmail") || "admin.lab@example.com";',
+          '    const password = pm.variables.get("adminPassword") || "Admin@123456";',
+          '    pm.sendRequest({',
+          '        url: baseUrl + "/api/auth/login",',
+          '        method: "POST",',
+          '        header: { "Content-Type": "application/json" },',
+          '        body: {',
+          '            mode: "raw",',
+          '            raw: JSON.stringify({ email: email, password: password })',
+          '        }',
+          '    }, function (err, res) {',
+          '        if (!err && res.code === 200) {',
+          '            const json = res.json();',
+          '            if (json.data && json.data.accessToken) {',
+          '                pm.collectionVariables.set("adminToken", json.data.accessToken);',
+          '                pm.environment.set("adminToken", json.data.accessToken);',
+          '                console.log("🔑 [Auto-Auth] Tự động cấp quyền Admin Token thành công!");',
+          '            }',
+          '        }',
+          '    });',
+          '}'
+        ]
+      }
+    }
+  ],
+  variable: [
+    {
+      key: 'baseUrl',
+      value: 'http://localhost:5000',
+      type: 'string'
+    },
+    {
+      key: 'adminToken',
+      value: '',
+      type: 'string'
+    },
+    {
+      key: 'adminEmail',
+      value: 'admin.lab@example.com',
+      type: 'string'
+    },
+    {
+      key: 'adminPassword',
+      value: 'Admin@123456',
+      type: 'string'
+    }
+  ],
+  item: [
+    // --- BƯỚC 00: ĐĂNG NHẬP ADMIN LẤY TOKEN CHO P17 ---
+    {
+      name: '00 - Đăng nhập Admin lấy Bearer Token (Phục vụ ca P17)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("00 - Đăng nhập thành công trả về HTTP 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(true);',
+              '    pm.expect(json.data.accessToken).to.be.a("string");',
+              '    pm.collectionVariables.set("adminToken", json.data.accessToken);',
+              '    pm.environment.set("adminToken", json.data.accessToken);',
+              '    console.log("✅ Đã lưu adminToken thành công:", json.data.accessToken.slice(0, 20) + "...");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'POST',
+        header: [{ key: 'Content-Type', value: 'application/json' }],
+        body: {
+          mode: 'raw',
+          raw: '{\n  "email": "{{adminEmail}}",\n  "password": "{{adminPassword}}"\n}'
+        },
+        url: {
+          raw: '{{baseUrl}}/api/auth/login',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'auth', 'login']
+        }
+      }
+    },
+
+    // --- PHẦN A: KIỂM THỬ PHÂN TRANG (P01 - P09) ---
+    {
+      name: 'P01 - GET mặc định không truyền query',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P01 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P01 - data là mảng; pagination mặc định page=1, limit=10", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(true);',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.pagination).to.be.an("object");',
+              '    pm.expect(json.pagination.page).to.eql(1);',
+              '    pm.expect(json.pagination.limit).to.eql(10);',
+              '    pm.expect(json.pagination.totalItems).to.be.at.least(5);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien']
+        }
+      }
+    },
+
+    {
+      name: 'P02 - GET ?page=1&limit=2 (Tối đa 2 bản ghi đầu theo maSV)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P02 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P02 - Tối đa 2 bản ghi đầu theo maSV tăng dần", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(2);',
+              '    pm.expect(json.pagination.page).to.eql(1);',
+              '    pm.expect(json.pagination.limit).to.eql(2);',
+              '    pm.expect(json.data[0].maSV).to.eql("SV001");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=1&limit=2',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [
+            { key: 'page', value: '1' },
+            { key: 'limit', value: '2' }
+          ]
+        }
+      }
+    },
+
+    {
+      name: 'P03 - GET ?page=2&limit=2 (Tối đa 2 bản ghi tiếp; không trùng P02)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P03 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P03 - Tối đa 2 bản ghi tiếp theo, không trùng với P02", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(2);',
+              '    pm.expect(json.pagination.page).to.eql(2);',
+              '    pm.expect(json.pagination.limit).to.eql(2);',
+              '    pm.expect(json.data[0].maSV).to.eql("SV003");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=2&limit=2',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [
+            { key: 'page', value: '2' },
+            { key: 'limit', value: '2' }
+          ]
+        }
+      }
+    },
+
+    {
+      name: 'P04 - GET ?page=3&limit=2 (Trang cuối có thể ít hơn 2)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P04 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P04 - Trang cuối lấy bản ghi dư (1 bản ghi SV005)", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(1);',
+              '    pm.expect(json.pagination.page).to.eql(3);',
+              '    pm.expect(json.data[0].maSV).to.eql("SV005");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=3&limit=2',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [
+            { key: 'page', value: '3' },
+            { key: 'limit', value: '2' }
+          ]
+        }
+      }
+    },
+
+    {
+      name: 'P05 - GET ?page=999&limit=2 (Trang vượt quá, data=[], totalItems chính xác)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P05 - Status code phải là 200 OK (không lỗi 500)", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P05 - data là mảng rỗng [] và totalItems vẫn chính xác", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(0);',
+              '    pm.expect(json.pagination.totalItems).to.eql(5);',
+              '    pm.expect(json.pagination.totalPages).to.eql(3);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=999&limit=2',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [
+            { key: 'page', value: '999' },
+            { key: 'limit', value: '2' }
+          ]
+        }
+      }
+    },
+
+    {
+      name: 'P06 - GET ?page=-1 (Thông báo page không hợp lệ)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P06 - Status code phải là 400 Bad Request", function () {',
+              '    pm.response.to.have.status(400);',
+              '});',
+              'pm.test("P06 - Thông báo lỗi page không hợp lệ", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(false);',
+              '    pm.expect(json.message).to.include("page");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=-1',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'page', value: '-1' }]
+        }
+      }
+    },
+
+    {
+      name: 'P07 - GET ?page=0 (page phải >= 1)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P07 - Status code phải là 400 Bad Request", function () {',
+              '    pm.response.to.have.status(400);',
+              '});',
+              'pm.test("P07 - Chặn page=0 vì trang bắt đầu từ 1", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(false);',
+              '    pm.expect(json.message).to.include("page");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=0',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'page', value: '0' }]
+        }
+      }
+    },
+
+    {
+      name: 'P08 - GET ?page=1.5 (Không chấp nhận page thập phân)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P08 - Status code phải là 400 Bad Request", function () {',
+              '    pm.response.to.have.status(400);',
+              '});',
+              'pm.test("P08 - Chặn số thập phân 1.5", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(false);',
+              '    pm.expect(json.message).to.include("page");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=1.5',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'page', value: '1.5' }]
+        }
+      }
+    },
+
+    {
+      name: 'P09 - GET ?limit=abc (Không trả 500, không thực hiện query sai)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P09 - Status code phải là 400 Bad Request", function () {',
+              '    pm.response.to.have.status(400);',
+              '});',
+              'pm.test("P09 - Chặn limit là chuỗi ký tự abc", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(false);',
+              '    pm.expect(json.message).to.include("limit");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?limit=abc',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'limit', value: 'abc' }]
+        }
+      }
+    },
+
+    // --- PHẦN B: KIỂM THỬ TÌM KIẾM VÀ HỒI QUY (P10 - P17) ---
+    {
+      name: 'P10 - GET ?limit=51 (Chặn limit vượt 50)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P10 - Status code phải là 400 Bad Request", function () {',
+              '    pm.response.to.have.status(400);',
+              '});',
+              'pm.test("P10 - Chặn limit vượt quá 50 của bài lab", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(false);',
+              '    pm.expect(json.message).to.include("50");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?limit=51',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'limit', value: '51' }]
+        }
+      }
+    },
+
+    {
+      name: 'P11 - GET ?search=Anh (Chỉ tên phù hợp theo collation kiểm chứng)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P11 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P11 - Trả về đúng 2 sinh viên có tên chứa từ khóa Anh", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(2);',
+              '    json.data.forEach(function (sv) {',
+              '        pm.expect(sv.hoTen.toLowerCase()).to.include("anh");',
+              '    });',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?search=Anh',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'search', value: 'Anh' }]
+        }
+      }
+    },
+
+    {
+      name: 'P12 - GET ?search=Anh&page=2&limit=2 (totalItems là tổng KẾT QUẢ LỌC, không phải tổng bảng)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P12 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P12 - totalItems là tổng kết quả lọc = 2 (không phải 5 của toàn bảng)", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.pagination.totalItems).to.eql(2);',
+              '    pm.expect(json.pagination.totalPages).to.eql(1);',
+              '    pm.expect(json.data.length).to.eql(0);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?search=Anh&page=2&limit=2',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [
+            { key: 'search', value: 'Anh' },
+            { key: 'page', value: '2' },
+            { key: 'limit', value: '2' }
+          ]
+        }
+      }
+    },
+
+    {
+      name: 'P13 - GET ?search=khongco (data=[], totalItems=0, totalPages=0)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P13 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P13 - Không có kết quả: data=[], totalItems=0, totalPages=0", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(0);',
+              '    pm.expect(json.pagination.totalItems).to.eql(0);',
+              '    pm.expect(json.pagination.totalPages).to.eql(0);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?search=khongco',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'search', value: 'khongco' }]
+        }
+      }
+    },
+
+    {
+      name: 'P14 - GET ?search=%20Anh%20 (Trim thành Anh)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P14 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P14 - Khoảng trắng hai đầu được trim thành Anh", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data).to.be.an("array");',
+              '    pm.expect(json.data.length).to.eql(2);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?search=%20Anh%20',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'search', value: ' Anh ' }]
+        }
+      }
+    },
+
+    {
+      name: 'P15 - GET ?search=[81 ký tự] (Chặn từ khóa quá dài)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P15 - Status code phải là 400 Bad Request", function () {',
+              '    pm.response.to.have.status(400);',
+              '});',
+              'pm.test("P15 - Chặn từ khóa tìm kiếm dài hơn 80 ký tự", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.success).to.eql(false);',
+              '    pm.expect(json.message).to.include("80");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: `{{baseUrl}}/api/v1/sinh-vien?search=${'A'.repeat(81)}`,
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [{ key: 'search', value: 'A'.repeat(81) }]
+        }
+      }
+    },
+
+    {
+      name: 'P16 - GET ?page=2&limit=2 (SQL có ORDER BY + OFFSET/FETCH)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P16 - Status code phải là 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});',
+              'pm.test("P16 - Kiểm chứng phân trang SQL Server thật qua findAndCountAll", function () {',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data.length).to.eql(2);',
+              '    pm.expect(json.pagination.page).to.eql(2);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien?page=2&limit=2',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien'],
+          query: [
+            { key: 'page', value: '2' },
+            { key: 'limit', value: '2' }
+          ]
+        }
+      }
+    },
+
+    // --- P17: HỒI QUY CRUD VÀ AUTH CHƯƠNG 07 ---
+    {
+      name: 'P17.1 - Hồi quy GET chi tiết /api/v1/sinh-vien/SV001',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P17.1 - GET chi tiết sinh viên trả về 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data.maSV).to.eql("SV001");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien/SV001',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien', 'SV001']
+        }
+      }
+    },
+
+    {
+      name: 'P17.2 - Hồi quy POST thêm sinh viên SV998 (Admin Auth)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P17.2 - POST thêm sinh viên thành công (201 Created hoặc 409 nếu đã có)", function () {',
+              '    pm.expect([201, 409]).to.include(pm.response.code);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'POST',
+        header: [
+          { key: 'Content-Type', value: 'application/json' },
+          { key: 'Authorization', value: 'Bearer {{adminToken}}' }
+        ],
+        body: {
+          mode: 'raw',
+          raw: '{\n  "maSV": "SV998",\n  "hoTen": "Sinh Vien Test Postman",\n  "email": "postman.test@example.com",\n  "maLop": "25CT114"\n}'
+        },
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien']
+        }
+      }
+    },
+
+    {
+      name: 'P17.3 - Hồi quy PUT cập nhật sinh viên SV998 (Admin Auth)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P17.3 - PUT cập nhật thành công trả về 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data.hoTen).to.include("Updated");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'PUT',
+        header: [
+          { key: 'Content-Type', value: 'application/json' },
+          { key: 'Authorization', value: 'Bearer {{adminToken}}' }
+        ],
+        body: {
+          mode: 'raw',
+          raw: '{\n  "hoTen": "Sinh Vien Test Postman Updated",\n  "email": "postman.test@example.com",\n  "maLop": "25CT114"\n}'
+        },
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien/SV998',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien', 'SV998']
+        }
+      }
+    },
+
+    {
+      name: 'P17.4 - Hồi quy DELETE xóa sinh viên SV998 (Admin Auth)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P17.4 - DELETE xóa thành công trả về 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'DELETE',
+        header: [
+          { key: 'Authorization', value: 'Bearer {{adminToken}}' }
+        ],
+        url: {
+          raw: '{{baseUrl}}/api/v1/sinh-vien/SV998',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'v1', 'sinh-vien', 'SV998']
+        }
+      }
+    },
+
+    {
+      name: 'P17.5 - Hồi quy GET /api/auth/profile (Bearer Auth còn hoạt động)',
+      event: [
+        {
+          listen: 'test',
+          script: {
+            type: 'text/javascript',
+            exec: [
+              'pm.test("P17.5 - Auth Profile trả về 200 OK", function () {',
+              '    pm.response.to.have.status(200);',
+              '    const json = pm.response.json();',
+              '    pm.expect(json.data.role).to.eql("admin");',
+              '});'
+            ]
+          }
+        }
+      ],
+      request: {
+        method: 'GET',
+        header: [
+          { key: 'Authorization', value: 'Bearer {{adminToken}}' }
+        ],
+        url: {
+          raw: '{{baseUrl}}/api/auth/profile',
+          host: ['{{baseUrl}}'],
+          path: ['api', 'auth', 'profile']
+        }
+      }
+    }
+  ]
+};
+
+// 3. Đường dẫn lưu file
+const outputDir = path.resolve('postman');
+const outputFilePrimary = path.join(outputDir, 'Chuong8_Buoc6_postman.json');
+const outputFileAlt = path.join(outputDir, 'Chuong8_Buoc6_postman.postman_collection.json');
+
+// 4. Ghi file với định dạng JSON đẹp
+const jsonContent = JSON.stringify(collection, null, 2);
+fs.writeFileSync(outputFilePrimary, jsonContent, 'utf8');
+fs.writeFileSync(outputFileAlt, jsonContent, 'utf8');
+
+console.log('✅ Đã tạo thành công file Postman Collection tại:');
+console.log(`   📁 ${outputFilePrimary}`);
+console.log(`   📁 ${outputFileAlt}`);
+console.log(`🎉 Tổng số ca kiểm thử được cấu hình: ${collection.item.length} requests (Gồm 00 Login + P01 đến P17)`);

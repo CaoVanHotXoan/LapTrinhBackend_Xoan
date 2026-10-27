@@ -1,0 +1,704 @@
+# ==============================================================================
+# TÀI LIỆU ĐẶC TẢ API QUẢN LÝ SINH VIÊN VÀ XÁC THỰC AUTHENTICATION (OPENAPI 3.0.3)
+# File: docs/openapi.yaml
+# Mục đích: Mô tả đầy đủ các API CRUD SinhVien và API Auth với Bearer Token JWT
+# ==============================================================================
+
+# Phiên bản chuẩn đặc tả OpenAPI
+openapi: 3.0.3
+
+# Thông tin tổng quan về tài liệu API
+info:
+  # Tiêu đề của bộ tài liệu
+  title: 'API Quản lý sinh viên & Authentication JWT'
+  # Phiên bản tài liệu
+  version: '1.0.0'
+  # Mô tả tóm tắt nội dung
+  description: 'Hệ thống RESTful CRUD SinhVien kết hợp phân quyền RBAC và xác thực Bearer JWT Token.'
+
+# Cấu hình danh sách Server môi trường chạy API
+servers:
+  # Đường dẫn tương đối từ host và port hiện tại của máy chủ Express
+  - url: /
+    # Mô tả môi trường
+    description: 'Máy chủ nội bộ Express runtime'
+
+# Định nghĩa các nhóm thẻ (Tags) để gom nhóm API trực quan trên Swagger UI
+tags:
+  # Nhóm các API xác thực danh tính
+  - name: Auth
+    # Mô tả nhóm
+    description: 'Các API Đăng ký, Đăng nhập và Xem hồ sơ tài khoản (JWT)'
+  # Nhóm các API quản lý sinh viên
+  - name: SinhVien
+    # Mô tả nhóm
+    description: 'Các API quản lý thông tin sinh viên (CRUD phân quyền)'
+
+# ==============================================================================
+# KHAI BÁO CÁC ĐƯỜNG DẪN ENDPOINTS (PATHS)
+# ==============================================================================
+paths:
+  # ----------------------------------------------------------------------------
+  # 1. API ĐĂNG KÝ TÀI KHOẢN: POST /api/auth/register (Công khai - Public)
+  # ----------------------------------------------------------------------------
+  /api/auth/register:
+    post:
+      # Gom vào nhóm thẻ Auth
+      tags: [Auth]
+      # Tóm tắt chức năng
+      summary: 'Đăng ký tài khoản người dùng mới'
+      # Định danh duy nhất của thao tác
+      operationId: registerUser
+      # Mô tả chi tiết
+      description: 'Đăng ký tài khoản mới với vai trò mặc định là student. Mật khẩu được băm bcrypt cost 12.'
+      # Cấu hình dữ liệu gửi lên trong Body
+      requestBody:
+        # Bắt buộc phải có body
+        required: true
+        # Định dạng JSON
+        content:
+          application/json:
+            # Tham chiếu tới cấu trúc RegisterInput
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+      # Danh sách phản hồi có thể xảy ra
+      responses:
+        # Phản hồi 201 Created: Đăng ký thành công
+        '201':
+          description: 'Đăng ký tài khoản thành công, trả về thông tin công khai (không lộ passwordHash)'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        # Phản hồi 400 Bad Request: Dữ liệu gửi lên sai định dạng hoặc thiếu trường
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        # Phản hồi 409 Conflict: Địa chỉ email đã được sử dụng
+        '409':
+          $ref: '#/components/responses/Conflict'
+        # Phản hồi 500 Internal Server Error: Lỗi hệ thống ngoài dự kiến
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ----------------------------------------------------------------------------
+  # 2. API ĐĂNG NHẬP: POST /api/auth/login (Công khai - Public)
+  # ----------------------------------------------------------------------------
+  /api/auth/login:
+    post:
+      # Gom vào nhóm thẻ Auth
+      tags: [Auth]
+      # Tóm tắt chức năng
+      summary: 'Đăng nhập tài khoản và nhận Access Token'
+      # Định danh duy nhất của thao tác
+      operationId: loginUser
+      # Mô tả chi tiết
+      description: 'Xác thực email và mật khẩu qua bcrypt. Cấp chuỗi JWT hạn dùng 1 giờ.'
+      # Dữ liệu gửi lên trong Body
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginInput'
+      # Danh sách phản hồi
+      responses:
+        # Phản hồi 200 OK: Đăng nhập thành công và cấp Access Token
+        '200':
+          description: 'Đăng nhập thành công, nhận Bearer JWT Access Token'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        # Phản hồi 400 Bad Request: Thiếu thông tin đăng nhập
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        # Phản hồi 401 Unauthorized: Sai thông tin đăng nhập (email hoặc mật khẩu không đúng)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        # Phản hồi 500 Internal Server Error: Lỗi máy chủ
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ----------------------------------------------------------------------------
+  # 3. API XEM HỒ SƠ: GET /api/auth/profile (Yêu cầu xác thực Bearer Token)
+  # ----------------------------------------------------------------------------
+  /api/auth/profile:
+    get:
+      # Gom vào nhóm thẻ Auth
+      tags: [Auth]
+      # Tóm tắt chức năng
+      summary: 'Xem hồ sơ cá nhân của tài khoản đang đăng nhập'
+      # Định danh duy nhất của thao tác
+      operationId: getProfile
+      # Mô tả chi tiết
+      description: 'Yêu cầu Bearer Token hợp lệ trong header Authorization để xem thông tin cá nhân.'
+      # Khai báo yêu cầu bảo mật Bearer Token cho riêng endpoint này
+      security:
+        - bearerAuth: []
+      # Danh sách phản hồi
+      responses:
+        # Phản hồi 200 OK: Lấy hồ sơ thành công
+        '200':
+          description: 'Lấy thông tin hồ sơ thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileResponse'
+        # Phản hồi 401 Unauthorized: Thiếu token, token sai chữ ký hoặc hết hạn
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        # Phản hồi 500 Internal Server Error: Lỗi máy chủ
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ----------------------------------------------------------------------------
+  # 3b. API CẬP NHẬT ẢNH ĐẠI DIỆN: POST /api/auth/me/avatar (Yêu cầu Bearer Token)
+  # ----------------------------------------------------------------------------
+  /api/auth/me/avatar:
+    post:
+      # Gom vào nhóm thẻ Auth
+      tags: [Auth]
+      # Tóm tắt chức năng
+      summary: 'Tải lên ảnh đại diện cho tài khoản đang đăng nhập'
+      # Định danh duy nhất của thao tác
+      operationId: uploadAvatar
+      # Mô tả chi tiết
+      description: 'Tải lên 1 tập tin hình ảnh JPEG/PNG (tối đa 2MB). Yêu cầu xác thực Bearer Token.'
+      # Yêu cầu bảo mật Bearer Token (ổ khóa bảo vệ)
+      security:
+        - bearerAuth: []
+      # Cấu hình dữ liệu gửi lên dạng multipart/form-data
+      requestBody:
+        # Bắt buộc phải có body
+        required: true
+        # Định dạng form-data chứa file
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              # Bắt buộc có trường avatar
+              required: [avatar]
+              properties:
+                # Trường avatar dạng file nhị phân
+                avatar:
+                  type: string
+                  format: binary
+                  description: 'Tập tin hình ảnh định dạng JPEG hoặc PNG (dung lượng <= 2MB)'
+      # Danh sách các phản hồi HTTP chuẩn
+      responses:
+        # Phản hồi 200 OK: Upload và cập nhật thành công
+        '200':
+          description: 'Cập nhật ảnh đại diện thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvatarUploadResponse'
+        # Phản hồi 400 Bad Request: Thiếu file, sai định dạng hoặc chữ ký giả mạo
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        # Phản hồi 401 Unauthorized: Chưa đăng nhập hoặc token không hợp lệ
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        # Phản hồi 413 Payload Too Large: Kích thước tập tin vượt quá 2MB
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        # Phản hồi 500 Internal Server Error: Lỗi máy chủ
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ----------------------------------------------------------------------------
+  # 4. API LẤY DANH SÁCH VÀ THÊM MỚI SINH VIÊN
+  # ----------------------------------------------------------------------------
+  /api/v1/sinh-vien:
+    # Thao tác đọc: GET - Giữ Public công khai, hỗ trợ phân trang & tìm kiếm (Chương 08)
+    get:
+      tags: [SinhVien]
+      summary: 'Lấy danh sách sinh viên có phân trang và tìm kiếm (Công khai)'
+      operationId: getDanhSachSinhVien
+      description: 'Truy vấn phân trang thực tế tại SQL Server bằng OFFSET/FETCH. Hỗ trợ lọc theo họ tên sinh viên (search).'
+      parameters:
+        - $ref: '#/components/parameters/QueryPage'
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QuerySearch'
+      responses:
+        '200':
+          description: 'Thành công, trả về mảng danh sách sinh viên kèm metadata phân trang'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    # Thao tác ghi: POST - Yêu cầu xác thực và quyền Admin
+    post:
+      tags: [SinhVien]
+      summary: 'Thêm mới sinh viên (Yêu cầu quyền Admin)'
+      operationId: taoSinhVien
+      description: 'Chỉ tài khoản sở hữu vai trò admin mới được phép thêm sinh viên.'
+      # Yêu cầu bảo mật Bearer Token
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SinhVien'
+      responses:
+        '201':
+          description: 'Tạo sinh viên thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        # Phản hồi 401: Chưa xác thực (thiếu hoặc sai token)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        # Phản hồi 403: Đã xác thực nhưng không đủ quyền admin (ví dụ tài khoản student)
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ----------------------------------------------------------------------------
+  # 5. API THEO MÃ SINH VIÊN: /api/v1/sinh-vien/{maSV}
+  # ----------------------------------------------------------------------------
+  /api/v1/sinh-vien/{maSV}:
+    parameters:
+      - $ref: '#/components/parameters/MaSV'
+
+    # Thao tác đọc: GET - Giữ Public công khai
+    get:
+      tags: [SinhVien]
+      summary: 'Lấy chi tiết sinh viên theo mã số (Công khai)'
+      operationId: getSinhVienTheoMa
+      responses:
+        '200':
+          description: 'Tìm thấy sinh viên'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    # Thao tác sửa: PUT - Yêu cầu xác thực và quyền Admin
+    put:
+      tags: [SinhVien]
+      summary: 'Cập nhật thông tin sinh viên (Yêu cầu quyền Admin)'
+      operationId: capNhatSinhVien
+      description: 'Chỉ tài khoản vai trò admin mới có quyền sửa sinh viên.'
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SinhVienUpdate'
+      responses:
+        '200':
+          description: 'Cập nhật thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SinhVienResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    # Thao tác xóa: DELETE - Yêu cầu xác thực và quyền Admin
+    delete:
+      tags: [SinhVien]
+      summary: 'Xóa sinh viên theo mã số (Yêu cầu quyền Admin)'
+      operationId: xoaSinhVien
+      description: 'Chỉ tài khoản vai trò admin mới có quyền xóa sinh viên khỏi hệ thống.'
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: 'Xóa sinh viên thành công'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+# ==============================================================================
+# KHAI BÁO CÁC THÀNH PHẦN TÁI SỬ DỤNG (COMPONENTS)
+# ==============================================================================
+components:
+  # ----------------------------------------------------------------------------
+  # Cấu hình cơ chế bảo mật (Security Schemes) chuẩn Bearer JWT
+  # ----------------------------------------------------------------------------
+  securitySchemes:
+    # Định nghĩa lược đồ xác thực bearerAuth
+    bearerAuth:
+      # Loại bảo mật là HTTP
+      type: http
+      # Phương thức xác thực Bearer
+      scheme: bearer
+      # Định dạng token là JWT (JSON Web Token)
+      bearerFormat: JWT
+      # Mô tả hướng dẫn nhập token trên giao diện Swagger UI
+      description: 'Nhập chuỗi JWT token nhận được từ API login (không cần gõ lại chữ Bearer)'
+
+  # ----------------------------------------------------------------------------
+  # Khai báo các tham số tái sử dụng (Parameters)
+  # ----------------------------------------------------------------------------
+  parameters:
+    MaSV:
+      name: maSV
+      in: path
+      required: true
+      schema:
+        type: string
+        minLength: 1
+      example: 'SV001'
+
+    # Tham số trang (page) cho API danh sách sinh viên (Chương 08)
+    QueryPage:
+      name: page
+      in: query
+      required: false
+      description: 'Số thứ tự trang cần lấy (bắt đầu từ 1, mặc định 1)'
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      example: 1
+
+    # Tham số số lượng bản ghi (limit) trên một trang (Chương 08)
+    QueryLimit:
+      name: limit
+      in: query
+      required: false
+      description: 'Số lượng bản ghi tối đa trên mỗi trang (từ 1 đến 50, mặc định 10)'
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 50
+        default: 10
+      example: 10
+
+    # Tham số tìm kiếm theo họ tên (search) (Chương 08)
+    QuerySearch:
+      name: search
+      in: query
+      required: false
+      description: 'Từ khóa tìm kiếm theo họ tên sinh viên (tối đa 80 ký tự)'
+      schema:
+        type: string
+        maxLength: 80
+        default: ''
+      example: 'Anh'
+
+  # ----------------------------------------------------------------------------
+  # Khai báo các cấu trúc dữ liệu (Schemas)
+  # ----------------------------------------------------------------------------
+  schemas:
+    # 1. Cấu trúc chi tiết một lỗi Validation từ Zod
+    ValidationIssue:
+      type: object
+      required: [field, message]
+      properties:
+        field: { type: string, example: email }
+        message: { type: string, example: 'Email không đúng định dạng' }
+
+    # 2. Cấu trúc lỗi tổng quát chuẩn của hệ thống
+    ErrorResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean, enum: [false], example: false }
+        message: { type: string, example: 'Thông điệp lỗi chi tiết' }
+        data: { type: object, nullable: true, example: null }
+        errors:
+          type: array
+          description: 'Mảng danh sách các trường bị vi phạm validation (nếu có)'
+          items:
+            $ref: '#/components/schemas/ValidationIssue'
+
+    # 3. Dữ liệu đầu vào đăng ký tài khoản (RegisterInput)
+    RegisterInput:
+      type: object
+      additionalProperties: false
+      required: [fullName, email, password]
+      properties:
+        fullName:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: 'Nguyen Minh An'
+        email:
+          type: string
+          format: email
+          maxLength: 254
+          example: 'an.lab@example.com'
+        password:
+          type: string
+          minLength: 6
+          maxLength: 100
+          example: 'SinhVien@123'
+
+    # 4. Dữ liệu đầu vào đăng nhập (LoginInput)
+    LoginInput:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: 'an.lab@example.com'
+        password:
+          type: string
+          minLength: 1
+          example: 'SinhVien@123'
+
+    # 5. Thông tin người dùng công khai (tuyệt đối không chứa mật khẩu hay passwordHash)
+    UserPublic:
+      type: object
+      required: [id, fullName, email, role]
+      properties:
+        id: { type: integer, example: 1 }
+        fullName: { type: string, example: 'Nguyen Minh An' }
+        email: { type: string, format: email, example: 'an.lab@example.com' }
+        role: { type: string, enum: [student, admin], example: 'student' }
+        # Đường dẫn ảnh đại diện tương đối phục vụ qua express.static
+        avatarUrl:
+          type: string
+          nullable: true
+          example: '/uploads/a4e33049-52bf-4b54-ae4d-82a01edbfba9.png'
+          description: 'Đường dẫn ảnh đại diện tương đối (null nếu tài khoản chưa upload)'
+
+    # 6. Dữ liệu phản hồi đăng ký thành công
+    RegisterResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Đăng ký tài khoản thành công' }
+        data:
+          $ref: '#/components/schemas/UserPublic'
+
+    # 7. Cấu trúc dữ liệu chứa Access Token sau khi đăng nhập thành công
+    LoginData:
+      type: object
+      required: [accessToken, tokenType, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIiwicm9sZSI6InN0dWRlbnQifQ...'
+        tokenType:
+          type: string
+          enum: [Bearer]
+          example: 'Bearer'
+        expiresIn:
+          type: integer
+          example: 3600
+
+    # 8. Dữ liệu phản hồi đăng nhập thành công
+    LoginResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Đăng nhập thành công' }
+        data:
+          $ref: '#/components/schemas/LoginData'
+
+    # 9. Dữ liệu phản hồi xem hồ sơ cá nhân
+    ProfileResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Lấy thông tin hồ sơ thành công' }
+        data:
+          $ref: '#/components/schemas/UserPublic'
+
+    # 9b. Cấu trúc dữ liệu chứa URL ảnh đại diện sau khi tải lên thành công
+    AvatarUploadData:
+      type: object
+      required: [avatarUrl]
+      properties:
+        # Đường dẫn URL tương đối tới ảnh tĩnh
+        avatarUrl:
+          type: string
+          example: '/uploads/a4e33049-52bf-4b54-ae4d-82a01edbfba9.png'
+          description: 'Đường dẫn URL ảnh đại diện do máy chủ cấp phát'
+
+    # 9c. Dữ liệu phản hồi tải lên ảnh đại diện thành công
+    AvatarUploadResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Cập nhật ảnh đại diện thành công' }
+        data:
+          $ref: '#/components/schemas/AvatarUploadData'
+
+    # 10. Thực thể SinhVien đầy đủ
+    SinhVien:
+      type: object
+      additionalProperties: false
+      required: [maSV, hoTen, email, maLop]
+      properties:
+        maSV: { type: string, minLength: 1, example: 'SV001' }
+        hoTen: { type: string, minLength: 1, example: 'Nguyen Van A' }
+        email: { type: string, format: email, example: 'nguyenvana@example.com' }
+        maLop: { type: string, minLength: 1, example: '25CT114' }
+
+    # 11. Dữ liệu cập nhật SinhVien (không chứa maSV vì lấy từ URL)
+    SinhVienUpdate:
+      type: object
+      additionalProperties: false
+      required: [hoTen, email, maLop]
+      properties:
+        hoTen: { type: string, minLength: 1, example: 'Nguyen Van A Updated' }
+        email: { type: string, format: email, example: 'nguyenvana@example.com' }
+        maLop: { type: string, minLength: 1, example: '25CT114' }
+
+    # 12. Dữ liệu phản hồi thông tin một sinh viên
+    SinhVienResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Thao tác thành công' }
+        data:
+          $ref: '#/components/schemas/SinhVien'
+
+    # 13. Dữ liệu phản hồi danh sách sinh viên (kèm phân trang - Chương 08)
+    SinhVienListResponse:
+      type: object
+      required: [success, message, data, pagination]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Lấy danh sách sinh viên thành công' }
+        data:
+          type: array
+          description: 'Mảng danh sách sinh viên của trang được yêu cầu'
+          items:
+            $ref: '#/components/schemas/SinhVien'
+        pagination:
+          $ref: '#/components/schemas/PaginationMetadata'
+
+    # 13b. Metadata thông tin phân trang (Chương 08 - Bước 4)
+    PaginationMetadata:
+      type: object
+      required: [page, limit, totalItems, totalPages]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          example: 1
+          description: 'Số thứ tự trang hiện tại'
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+          example: 10
+          description: 'Số bản ghi tối đa trên một trang'
+        totalItems:
+          type: integer
+          minimum: 0
+          example: 5
+          description: 'Tổng số bản ghi thỏa điều kiện lọc trong CSDL'
+        totalPages:
+          type: integer
+          minimum: 0
+          example: 1
+          description: 'Tổng số trang tính được (bằng 0 nếu không có bản ghi nào)'
+
+    # 14. Dữ liệu phản hồi khi xóa sinh viên
+    DeleteResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean, enum: [true], example: true }
+        message: { type: string, example: 'Xóa sinh viên thành công' }
+
+  # ----------------------------------------------------------------------------
+  # Khai báo các phản hồi HTTP dùng chung (Responses)
+  # ----------------------------------------------------------------------------
+  responses:
+    # Lỗi 400: Dữ liệu gửi lên sai hoặc không hợp lệ
+    BadRequest:
+      description: 'Dữ liệu đầu vào không hợp lệ (400 Bad Request)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    # Lỗi 401: Chưa xác thực hợp lệ (thiếu hoặc sai token)
+    Unauthorized:
+      description: 'Chưa xác thực hợp lệ (401 Unauthorized: thiếu, sai hoặc hết hạn JWT Bearer Token)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    # Lỗi 403: Không đủ quyền truy cập tài nguyên
+    Forbidden:
+      description: 'Từ chối truy cập (403 Forbidden: đã xác thực nhưng không đủ quyền quản trị Admin)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    # Lỗi 404: Không tìm thấy tài nguyên
+    NotFound:
+      description: 'Không tìm thấy dữ liệu yêu cầu (404 Not Found)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    # Lỗi 409: Xung đột dữ liệu (trùng khóa chính hoặc trùng email)
+    Conflict:
+      description: 'Xung đột dữ liệu (409 Conflict: trùng mã sinh viên hoặc trùng email người dùng)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    # Lỗi 413: Dung lượng file tải lên vượt quá giới hạn 2MB
+    PayloadTooLarge:
+      description: 'Dung lượng tập tin vượt quá giới hạn cho phép tối đa 2MB (413 Payload Too Large)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    # Lỗi 500: Lỗi nội bộ máy chủ
+    InternalError:
+      description: 'Lỗi ngoài dự kiến từ hệ thống máy chủ (500 Internal Server Error)'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
