@@ -1,0 +1,17 @@
+{
+  // Kế thừa toàn bộ cấu hình compiler từ file tsconfig.json chính của dự án
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Mở rộng rootDir ra thư mục gốc để bao gồm cả thư mục src/ và thư mục tests/
+    "rootDir": ".",
+    // Chỉ định thư mục đầu ra ảo cho các file test biên dịch
+    "outDir": "./dist-test",
+    // Cho phép emit trong bộ nhớ để ts-jest nhận kết quả biên dịch
+    "noEmit": false
+  },
+  // Chỉ định rõ các thư mục mã nguồn và thư mục kiểm thử cần được nạp kiểu dữ liệu
+  "include": [
+    "src/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}

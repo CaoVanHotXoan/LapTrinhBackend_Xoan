@@ -317,4 +317,89 @@
 - Tận dụng triệt để Async Error Flow của Express 5, loại bỏ hoàn toàn các khối `try/catch` bọc lặp máy móc.
 - Bảo mật thông tin tuyệt đối: không rò rỉ chi tiết nội bộ hệ thống ở mã lỗi 500.
 
+---
+
+# BÁO CÁO KẾT QUẢ KIỂM THỬ AUTOMATED TESTING (CHƯƠNG 09 - LAB 1)
+
+> **Môi trường thử nghiệm**: Node.js v24.21.0 + Express 5.2.1 + TypeScript 5.9.3 + ESM/NodeNext  
+> **Thư viện kiểm thử**: Jest 30.5.2, ts-jest 29.4.15, Supertest 7.3.1  
+> **Kiến trúc ứng dụng**: Tách riêng `src/app.ts` (Express instance) và `src/server.ts` (Port & DB listener)  
+> **Cấu hình Jest**: `jest.config.mjs` + `tsconfig.spec.json`  
+
+---
+
+## 1. 📋 Bảng 5 Unit Test cho nghiệp vụ Đăng nhập (T01 – T05)
+*Vị trí file: `tests/unit/login.test.ts` (Kỹ thuật Mock: `jest.spyOn(User, 'findOne')`, `jest.spyOn(bcrypt, 'compare')`)*
+
+| ID | Tình huống kiểm thử | Dữ liệu đầu vào (Input) | Expected Result | Actual Result | Trạng thái |
+| :---: | :--- | :--- | :--- | :--- | :---: |
+| **T01** | Tài khoản có, mật khẩu đúng | Email hợp lệ, mật khẩu đúng | Xác thực thành công, cấp Token Bearer, thời hạn 3600s | Trả về `{ accessToken, tokenType: 'Bearer', expiresIn: 3600 }` | **PASS** |
+| **T02** | Tài khoản có, mật khẩu sai | Email có, mật khẩu sai (`compare => false`) | Từ chối, ném AppError(401), không cấp JWT | Ném AppError(401, 'Email hoặc mật khẩu không chính xác') | **PASS** |
+| **T03** | Tài khoản không tồn tại | Email chưa đăng ký (`findOne => null`) | Từ chối, ném AppError(401), không cấp JWT, không gọi bcrypt | Ném AppError 401, bcrypt.compare không được kích hoạt | **PASS** |
+| **T04** | Thiếu email hoặc password | Object rỗng `{}` hoặc email sai định dạng | Validation Zod Schema từ chối trước khi xử lý | `loginSchema.safeParse` trả về `success: false` | **PASS** |
+| **T05** | Lỗi Database / kết nối | Giả lập `User.findOne` ném `Error('SQL Server timeout')` | Xử lý an toàn, ném lỗi hệ thống không lộ cấu trúc | Ném ngoại lệ an toàn cho Express Global Error Handler | **PASS** |
+
+---
+
+## 2. 📋 Bảng 7 API Test HTTP/JWT với Supertest (A01 – A07)
+*Vị trí file: `tests/api/auth.api.test.ts` (Gọi HTTP trực tiếp qua `supertest(app)`, không mở PORT)*
+
+| ID | Tình huống kiểm thử | Method & Endpoint | Payload / Header | HTTP Kỳ vọng | HTTP Thực tế | Bằng chứng xác minh | Trạng thái |
+| :---: | :--- | :--- | :--- | :---: | :---: | :--- | :---: |
+| **A01** | Login hợp lệ | `POST /api/auth/login` | `{ email, password }` đúng | **200** | **200** | `body.success=true`, `body.data.accessToken` tồn tại dạng JWT chuỗi | **PASS** |
+| **A02** | Sai mật khẩu | `POST /api/auth/login` | Mật khẩu sai | **401** | **401** | `body.success=false`, `data=null`, không chứa token | **PASS** |
+| **A03** | User không tồn tại | `POST /api/auth/login` | Email lạ | **401** | **401** | `body.success=false`, `data=null`, thông điệp an toàn | **PASS** |
+| **A04** | Thiếu trường bắt buộc | `POST /api/auth/login` | `{}` (thiếu cả email và password) | **400** | **400** | Validation middleware chặn lại, trả thông báo lỗi Zod | **PASS** |
+| **A05** | GET Profile thiếu JWT | `GET /api/auth/profile` | Không gửi Header `Authorization` | **401** | **401** | Middleware `isAuth` chặn: *"Vui lòng cung cấp mã xác thực Bearer Token hợp lệ"* | **PASS** |
+| **A06** | GET Profile có JWT hợp lệ | `GET /api/auth/profile` | `Authorization: Bearer <token_hợp_lệ>` | **200** | **200** | Trả về đúng thông tin `id: 101`, `email`, `role: 'student'` | **PASS** |
+| **A07** | Lỗi hệ thống giả lập | `GET /api/test-500-error` | Không có | **500** | **500** | Phản hồi *"Lỗi hệ thống, vui lòng thử lại sau"*, không rò rỉ secret/SQL | **PASS** |
+
+---
+
+## 3. 🔍 Nhật ký phân tích tình huống FAIL có chủ đích và khắc phục (Trang 12 & 16)
+- **Tình huống xảy ra**: Khi cấu hình `ts-jest` cho dự án TypeScript ESM (`NodeNext`), ban đầu file `tsconfig.spec.json` đặt `"noEmit": true`. Khi chạy `pnpm test`, `ts-compiler` gặp lỗi:
+  ```
+  FAIL tests/unit/login.test.ts
+  Unable to process '...tests/unit/login.test.ts', please make sure that `outDir` in your tsconfig is neither '' or '.'.
+  ```
+- **Nguyên nhân kỹ thuật**: Khi `noEmit: true` kích hoạt trong `tsconfig`, trình biên dịch TypeScript luôn đánh dấu `emitSkipped: true`. `ts-jest` khi thấy cờ `emitSkipped: true` sẽ coi là không thể xử lý file `.ts` và báo lỗi. Đồng thời, thiếu gói `@jest/globals` trực tiếp để nạp kiểu dữ liệu `describe/test/expect`.
+- **Biện pháp khắc phục**:
+  1. Điều chỉnh `tsconfig.spec.json` sang `"noEmit": false` và `"outDir": "./dist-test"` để cho phép TypeScript sinh mã trung gian trong bộ nhớ cho `ts-jest`.
+  2. Bổ sung gói devDependency `@jest/globals`.
+  3. Cấu hình `diagnostics.ignoreCodes: [151002]` trong `jest.config.mjs` để triệt tiêu cảnh báo `isolatedModules`.
+- **Kết quả sau khi khắc phục**: Chạy lại `pnpm test` đạt **100% PASS** (13/13 ca kiểm thử).
+
+---
+
+## 4. 📊 Báo cáo đo lường Coverage thực tế (`pnpm test:coverage`)
+
+```text
+---------------------------|---------|----------|---------|---------|---------------------------
+File                       | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s         
+---------------------------|---------|----------|---------|---------|---------------------------
+All files                  |   33.96 |    22.43 |   27.27 |    34.2 |                           
+ src                       |   88.23 |      100 |   33.33 |   88.23 |                           
+  app.ts                   |   88.23 |      100 |   33.33 |   88.23 | 79,106                    
+ src/config                |      80 |    70.83 |     100 |      80 |                           
+  database.ts              |   76.47 |       60 |     100 |   76.47 | 16,19,22,28               
+  swagger.config.ts        |    87.5 |    88.88 |     100 |    87.5 | 40                        
+ src/controllers           |   17.39 |     8.33 |   22.22 |   17.39 |                           
+  auth.controller.ts       |   26.66 |       10 |      50 |   26.66 | 16-31,70-77,94-149        
+ src/middlewares           |   36.84 |    30.58 |   41.17 |   36.84 |                           
+  isAuth.ts                |   66.66 |    81.81 |     100 |   66.66 | 34-41,51-58,73-80         
+  error.middleware.ts      |   43.47 |    44.44 |     100 |   43.47 | 30,64-92,99-105,112-118   
+ src/services              |   12.39 |     7.14 |   18.75 |    12.5 |                           
+  auth.service.ts          |   46.42 |       50 |      50 |   46.42 | 27-57,125,149-167         
+ src/utils                 |   84.21 |       60 |     100 |   84.21 |                           
+  AppError.ts              |     100 |      100 |     100 |     100 |                           
+  jwt.ts                   |   78.57 |       60 |     100 |   78.57 | 31,62-64                  
+ src/validations           |   33.33 |        0 |       0 |   33.33 |                           
+  auth.schema.ts           |     100 |      100 |     100 |     100 |                           
+---------------------------|---------|----------|---------|---------|---------------------------
+Test Suites: 3 passed, 3 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+```
+
+
 

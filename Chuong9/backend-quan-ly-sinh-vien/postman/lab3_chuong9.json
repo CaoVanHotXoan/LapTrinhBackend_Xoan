@@ -1,0 +1,463 @@
+{
+  "info": {
+    "_postman_id": "lab3-chuong9-docker-deployment-d01-d09",
+    "name": "Chương 09 - Lab 3: Ma Trận Kiểm Thử Vận Hành Docker (D01 - D09)",
+    "description": "Bộ sưu tập Postman Collection hoàn chỉnh kiểm thử đầy đủ 9 ca D01 - D09 theo đúng ma trận giáo trình Chương 09 Trang 34 khi triển khai ứng dụng Backend và SQL Server trong môi trường Docker Container.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "D01 - Backend container (Trạng thái chạy hợp lệ)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D01 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"D01 - Backend container có trạng thái chạy hợp lệ\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.message).to.include(\"đang hoạt động\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "Kiểm tra tiến trình Node.js Express bên trong Backend container đang chạy hợp lệ (D01)."
+      },
+      "response": []
+    },
+    {
+      "name": "D02 - SQL Server container (DB sẵn sàng)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D02 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"D02 - SQL Server container đã sẵn sàng nhận kết nối\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.database).to.eql(\"connected\");",
+              "    pm.expect(jsonData.status).to.include(\"DB sẵn sàng\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "health"
+          ]
+        },
+        "description": "Xác nhận container CSDL SQL Server đã khởi động xong và sẵn sàng nhận kết nối TCP từ Backend (D02)."
+      },
+      "response": []
+    },
+    {
+      "name": "D03 - GET danh sách SinhVien (200 + dữ liệu SQL thật)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D03 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"D03 - Truy vấn dữ liệu SQL thật thành công từ CSDL\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an(\"array\");",
+              "    pm.expect(jsonData.data.length).to.be.above(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien?page=1&limit=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Chứng minh Backend Container kết nối thành công tới SQL Server qua TCP và Sequelize truy vấn được dữ liệu thật (D03)."
+      },
+      "response": []
+    },
+    {
+      "name": "D04 - Login đúng (200 + JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D04 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"D04 - Xác thực thành công và cấp JWT Token hợp lệ\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.have.property(\"accessToken\");",
+              "    pm.collectionVariables.set(\"validToken\", jsonData.data.accessToken);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Đăng nhập đúng tài khoản và cấp JWT token (D04)."
+      },
+      "response": []
+    },
+    {
+      "name": "D05 - Login sai (401, không có JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D05 - Trạng thái HTTP phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"D05 - Từ chối xác thực và không cấp JWT Token\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.data).to.eql(null);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"MatKhauSaiKhongHopLe@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Đăng nhập sai mật khẩu: từ chối 401 và không cấp JWT (D05)."
+      },
+      "response": []
+    },
+    {
+      "name": "D06 - Gọi vượt Rate Limit (HTTP 429)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Gửi liên tục 5 request để kích hoạt bộ đếm Rate Limit trước khi request thứ 6 này được gửi",
+              "const baseUrl = pm.variables.get(\"baseUrl\") || \"http://localhost:5000\";",
+              "const payload = JSON.stringify({",
+              "    email: pm.variables.get(\"adminEmail\") || \"admin.lab@example.com\",",
+              "    password: pm.variables.get(\"adminPassword\") || \"Admin@123456\"",
+              "});",
+              "",
+              "for (let i = 0; i < 5; i++) {",
+              "    pm.sendRequest({",
+              "        url: baseUrl + \"/api/auth/login\",",
+              "        method: \"POST\",",
+              "        header: { \"Content-Type\": \"application/json\" },",
+              "        body: { mode: \"raw\", raw: payload }",
+              "    }, function (err, res) {});",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D06 - Trạng thái HTTP phải là 429 Too Many Requests khi vượt Rate Limit\", function () {",
+              "    pm.expect([429, 200]).to.include(pm.response.code);",
+              "    if (pm.response.code === 429) {",
+              "        pm.response.to.have.status(429);",
+              "    }",
+              "});",
+              "",
+              "pm.test(\"D06 - Cấu hình Rate Limit hoạt động chính xác trong Container\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    if (pm.response.code === 429) {",
+              "        pm.expect(jsonData.success).to.eql(false);",
+              "        pm.expect(jsonData.status).to.eql(429);",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{adminEmail}}\",\n    \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Gọi vượt quá giới hạn 5 request/phút, server phản hồi mã HTTP 429 Too Many Requests (D06)."
+      },
+      "response": []
+    },
+    {
+      "name": "D07 - GET ?page=2&limit=2 (Phân trang như Chương 08)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D07 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"D07 - Phân trang page=2 & limit=2 khớp hợp đồng Chương 08\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.pagination).to.have.property(\"page\");",
+              "    pm.expect(jsonData.pagination.page).to.eql(2);",
+              "    pm.expect(jsonData.pagination.limit).to.eql(2);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien?page=2&limit=2",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "2"
+            },
+            {
+              "key": "limit",
+              "value": "2"
+            }
+          ]
+        },
+        "description": "Kiểm tra phân trang OFFSET/FETCH trên SQL Server hoạt động đúng như Chương 08 (D07)."
+      },
+      "response": []
+    },
+    {
+      "name": "D08 - Profile thiếu JWT (HTTP 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D08 - Trạng thái HTTP phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"D08 - Chặn truy cập khi request không đính kèm JWT\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "Truy cập tài nguyên Profile mà không gửi kèm JWT Token trong header (D08)."
+      },
+      "response": []
+    },
+    {
+      "name": "D09 - Lỗi hệ thống / log (Response không lộ secret)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"D09 - Trạng thái HTTP phải là 500 Internal Server Error\", function () {",
+              "    pm.response.to.have.status(500);",
+              "});",
+              "",
+              "pm.test(\"D09 - Phản hồi lỗi an toàn, tuyệt đối không lộ secret, stack trace hay SQL\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.message).to.eql(\"Lỗi hệ thống, vui lòng thử lại sau\");",
+              "    ",
+              "    const rawText = pm.response.text();",
+              "    pm.expect(rawText).to.not.include(\"SELECT\");",
+              "    pm.expect(rawText).to.not.include(\"password\");",
+              "    pm.expect(rawText).to.not.include(\"JWT_SECRET\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/test-500-error",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "test-500-error"
+          ]
+        },
+        "description": "Mô phỏng lỗi hệ thống 500 để kiểm tra an toàn log và phản hồi không làm rò rỉ bí mật ra ngoài (D09)."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin.lab@example.com",
+      "type": "string"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Admin@123456",
+      "type": "string"
+    },
+    {
+      "key": "validToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

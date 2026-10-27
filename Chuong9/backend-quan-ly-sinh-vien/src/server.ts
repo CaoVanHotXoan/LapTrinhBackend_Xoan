@@ -1,125 +1,20 @@
 // ==============================================================================
 // FILE KHỞI ĐỘNG VÀ ĐIỀU PHỐI CHÍNH CỦA SERVER EXPRESS
 // File: src/server.ts
+// Mục đích: Khởi tạo kết nối SQL Server và lắng nghe cổng HTTP (Port Listener)
 // ==============================================================================
 
 // Nạp cấu hình các biến môi trường từ file .env vào biến toàn cục process.env
 import 'dotenv/config';
 
-// Import framework Express để tạo ứng dụng Web Server
-import express from 'express';
+// Import ứng dụng Express đã cấu hình đầy đủ middleware và routes từ app.ts
+import { app } from './app.js';
 
-// Import thư viện CORS để cho phép các client từ domain/port khác gọi API
-import cors from 'cors';
-
-// Import thư viện Helmet giúp thiết lập các HTTP Header bảo mật tự động
-import helmet from 'helmet';
-
-// Import instance sequelize từ thư mục config (lưu ý đuôi .js cho ESM/NodeNext)
+// Import instance sequelize từ thư mục config để xác thực kết nối CSDL (lưu ý đuôi .js cho ESM)
 import { sequelize } from './config/database.js';
-
-// Import logger middleware để ghi log các request đi vào hệ thống ra console
-import { loggerMiddleware } from './middlewares/logger.middleware.js';
-
-// Import accessLogger middleware sử dụng Morgan để ghi nhật ký request vào file logs/access.log
-import { accessLogger } from './middlewares/access-log.middleware.js';
-
-// Import error middleware để xử lý lỗi tập trung toàn hệ thống
-import { errorMiddleware } from './middlewares/error.middleware.js';
-
-// Import thư viện Swagger UI Express để render giao diện tài liệu API trên web
-import swaggerUi from 'swagger-ui-express';
-
-// Import cấu hình đặc tả Swagger OpenAPI đã nạp từ file docs/openapi.yaml
-import { swaggerSpec } from './config/swagger.config.js';
-
-// Import router quản lý toàn bộ các route liên quan đến SinhVien
-import sinhVienRouter from './routes/sinhVien.routes.js';
-
-// Import router quản lý toàn bộ các route liên quan đến Xác thực (Auth)
-import authRouter from './routes/auth.routes.js';
-
-// Khởi tạo một instance ứng dụng Express
-const app = express();
 
 // Lấy giá trị cổng PORT từ biến môi trường .env, nếu chưa khai báo thì mặc định là 5000
 const PORT = Number(process.env.PORT ?? 5000);
-
-// ------------------------------------------------------------------------------
-// PIPELINE MIDDLEWARE CỦA EXPRESS (Thứ tự thực thi từ trên xuống dưới)
-// ------------------------------------------------------------------------------
-
-// 1. Gắn loggerMiddleware để in log trực tiếp ra màn hình console của server
-app.use(loggerMiddleware);
-
-// 2. Gắn accessLogger (Morgan) để tự động ghi nối tiếp (append) thông tin HTTP request vào logs/access.log
-app.use(accessLogger);
-
-// 2. Sử dụng middleware Helmet để thiết lập các HTTP Header bảo mật (cho phép tải ảnh tĩnh cross-origin)
-app.use(
-  helmet({
-    // Cấu hình chính sách chia sẻ tài nguyên cho phép Frontend (Vite) hiển thị ảnh tĩnh từ Backend
-    crossOriginResourcePolicy: { policy: 'cross-origin' }
-  })
-);
-
-// 3. Sử dụng middleware CORS theo allowlist chặt chẽ: chỉ cho phép Origin của Vite đang chạy (không dùng wildcard *)
-app.use(
-  cors({
-    // Chỉ định chính xác nguồn gốc (Origin) của ứng dụng Frontend Vite theo quy định giáo trình Trang 12
-    origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:5173',
-    // Cho phép gửi kèm thông tin xác thực (Credentials)
-    credentials: true
-  })
-);
-
-// 4. Sử dụng middleware express.json để tự động parse body request dạng JSON thành object
-app.use(express.json());
-
-// 5. Phục vụ ảnh tĩnh (static files) từ thư mục public/uploads tại URL /uploads theo đúng yêu cầu đề bài
-app.use('/uploads', express.static('public/uploads'));
-
-// 5. Định nghĩa route GET cho đường dẫn gốc ("/") để kiểm tra trạng thái hoạt động của server (Health Check)
-app.get('/', (_req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Backend quản lý sinh viên đang hoạt động'
-  });
-});
-
-// 6. Gắn giao diện Swagger UI tại đường dẫn '/api-docs' (sử dụng đặc tả từ docs/openapi.yaml)
-// Lưu ý: Đặt Swagger UI trước router sinh viên và trước middleware bắt lỗi 404
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-
-// 7. Gắn các route của SinhVien vào ứng dụng với tiền tố đường dẫn '/api/v1/sinh-vien'
-app.use('/api/v1/sinh-vien', sinhVienRouter);
-
-// 8. Gắn các route của Xác thực vào ứng dụng với tiền tố đường dẫn '/api/auth'
-app.use('/api/auth', authRouter);
-
-// 8.1. Route tạm kiểm thử an toàn lỗi 500 (Theo hướng dẫn thực hành Chương 08 - Trang 18)
-// Route này ném ra lỗi hệ thống giả lập để kiểm chứng lỗi 500 không bị lộ SQL, .env hay password
-app.get('/api/test-500-error', (_req, _res) => {
-  throw new Error('Mô phỏng lỗi hệ thống nội bộ để kiểm thử bảo mật Error Middleware');
-});
-
-// 9. Middleware xử lý lỗi 404 cho các đường dẫn hoặc phương thức không tồn tại trong hệ thống
-app.use((_req, res) => {
-  // Trả về định dạng lỗi chuẩn hóa thống nhất theo Chương 08
-  res.status(404).json({
-    // Trạng thái thất bại
-    success: false,
-    // Mã HTTP 404 Not Found
-    status: 404,
-    // Thông báo lỗi rõ ràng
-    message: 'Không tìm thấy đường dẫn',
-    // Dữ liệu null
-    data: null
-  });
-});
-
-// 10. Gắn errorMiddleware ở cuối cùng để hứng và xử lý tất cả các lỗi được chuyển tiếp qua next(error)
-app.use(errorMiddleware);
 
 // ------------------------------------------------------------------------------
 // HÀM KHỞI ĐỘNG VÀ LẮNG NGHE KẾT NỐI SERVER
@@ -146,5 +41,5 @@ async function startServer(): Promise<void> {
   }
 }
 
-// Thực thi khởi động ứng dụng
+// Thực thi khởi động ứng dụng máy chủ
 startServer();

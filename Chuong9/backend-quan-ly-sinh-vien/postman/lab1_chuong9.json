@@ -1,0 +1,368 @@
+{
+  "info": {
+    "_postman_id": "lab1-chuong9-http-jwt-a01-a07",
+    "name": "Chương 09 - Lab 1: Ma Trận Kiểm Thử HTTP / JWT (A01 - A07)",
+    "description": "Bộ sưu tập Postman Collection hoàn chỉnh kiểm thử 7 ca A01 - A07 theo đúng tài liệu giáo trình Chương 09 Trang 14: Login hợp lệ (200), Sai mật khẩu (401), User không tồn tại (401), Thiếu trường bắt buộc (400), GET Profile không có JWT (401), GET Profile có JWT hợp lệ (200), Lỗi hệ thống giả lập (500).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "A01 - Login hợp lệ (HTTP 200 + Cấp Token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A01 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"A01 - Phản hồi JSON hợp lệ và thành công\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.message).to.eql(\"Đăng nhập thành công\");",
+              "});",
+              "",
+              "pm.test(\"A01 - Cấp Access Token hợp lệ và lưu vào biến authToken\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.data).to.have.property(\"accessToken\");",
+              "    pm.expect(jsonData.data.tokenType).to.eql(\"Bearer\");",
+              "    pm.expect(jsonData.data.expiresIn).to.eql(3600);",
+              "    ",
+              "    // Tự động lưu Token vào biến của Collection để request A06 sử dụng",
+              "    pm.collectionVariables.set(\"authToken\", jsonData.data.accessToken);",
+              "    console.log(\"🔑 [A01] Đã lưu accessToken vào collection variable authToken\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử A01: Đăng nhập hợp lệ với email và mật khẩu đúng. Kỳ vọng HTTP 200 và nhận về accessToken."
+      },
+      "response": []
+    },
+    {
+      "name": "A02 - Sai mật khẩu (HTTP 401 + Không có JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A02 - Trạng thái HTTP phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A02 - Phản hồi thất bại và không cấp Token JWT\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.data).to.eql(null);",
+              "    pm.expect(jsonData).to.not.have.property(\"accessToken\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"MatKhauSaiHoanToan123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử A02: Đăng nhập với tài khoản có thật nhưng mật khẩu sai. Kỳ vọng HTTP 401 và data=null."
+      },
+      "response": []
+    },
+    {
+      "name": "A03 - User không tồn tại (HTTP 401 + Không có JWT)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A03 - Trạng thái HTTP phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A03 - Phản hồi thất bại, không tiết lộ tài khoản tồn tại hay không\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.data).to.eql(null);",
+              "    pm.expect(jsonData.message).to.eql(\"Email hoặc mật khẩu không chính xác\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"nguoidung.chuatungdangky.999@example.com\",\n    \"password\": \"PasswordBatKy123@\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử A03: Đăng nhập với email không tồn tại trong CSDL. Kỳ vọng HTTP 401."
+      },
+      "response": []
+    },
+    {
+      "name": "A04 - Thiếu trường bắt buộc (HTTP 400 + Thông báo Validation)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A04 - Trạng thái HTTP phải là 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "",
+              "pm.test(\"A04 - Middleware Zod validation chặn và trả thông báo lỗi\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.message).to.be.a(\"string\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử A04: Gửi body rỗng thiếu email và password. Kỳ vọng HTTP 400 từ Validation Middleware."
+      },
+      "response": []
+    },
+    {
+      "name": "A05 - GET Profile không có JWT (HTTP 401 + Request bị chặn)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A05 - Trạng thái HTTP phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"A05 - Middleware isAuth chặn request không có token\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.message).to.include(\"Bearer Token\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "Ca kiểm thử A05: Gọi GET /api/auth/profile mà không đính kèm header Authorization. Kỳ vọng HTTP 401."
+      },
+      "response": []
+    },
+    {
+      "name": "A06 - GET Profile có JWT hợp lệ (HTTP 200 + Trả đúng dữ liệu)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A06 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"A06 - Trả về đúng thông tin hồ sơ người dùng\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.have.property(\"id\");",
+              "    pm.expect(jsonData.data).to.have.property(\"email\");",
+              "    pm.expect(jsonData.data).to.have.property(\"role\");",
+              "    pm.expect(jsonData.data).to.not.have.property(\"passwordHash\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/profile",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "profile"
+          ]
+        },
+        "description": "Ca kiểm thử A06: Gọi GET /api/auth/profile đính kèm Bearer Token (lấy tự động từ A01). Kỳ vọng HTTP 200 và dữ liệu hồ sơ."
+      },
+      "response": []
+    },
+    {
+      "name": "A07 - Lỗi hệ thống giả lập (HTTP 500 + Không lộ SQL/Secret)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"A07 - Trạng thái HTTP phải là 500 Internal Server Error\", function () {",
+              "    pm.response.to.have.status(500);",
+              "});",
+              "",
+              "pm.test(\"A07 - Không rò rỉ SQL query, chuỗi kết nối hay mật khẩu\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status).to.eql(500);",
+              "    pm.expect(jsonData.message).to.eql(\"Lỗi hệ thống, vui lòng thử lại sau\");",
+              "    pm.expect(jsonData.data).to.eql(null);",
+              "    ",
+              "    const rawBody = pm.response.text();",
+              "    pm.expect(rawBody).to.not.include(\"SELECT\");",
+              "    pm.expect(rawBody).to.not.include(\"password\");",
+              "    pm.expect(rawBody).to.not.include(\"QuanLySinhVienDB\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/test-500-error",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "test-500-error"
+          ]
+        },
+        "description": "Ca kiểm thử A07: Gọi GET /api/test-500-error mô phỏng lỗi hệ thống. Kỳ vọng HTTP 500 an toàn, không lộ secret/SQL."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "admin.lab@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "Admin@123456",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

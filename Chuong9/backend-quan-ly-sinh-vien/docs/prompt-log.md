@@ -573,3 +573,137 @@
   - `TEST 4 (File vật lý)`: Tệp tin tồn tại thực tế trên ổ cứng trong thư mục `public/uploads/` (PASS).
   - `TEST 5 (Chống quá 2MB)`: Gửi tệp 2.5MB bị chặn đứng với mã **HTTP 413 Payload Too Large** (PASS).
   - `TEST 6 (Chống giả mạo)`: Tệp văn bản đổi đuôi `.png` bị chặn với mã **HTTP 400 Bad Request** (PASS).
+
+---
+
+# BỔ SUNG NHẬT KÝ PROMPT AI - CHƯƠNG 09: KIỂM THỬ, BẢO MẬT & DOCKER
+
+## 22. Nhật ký Prompt 0: Khảo sát và chuẩn bị dự án Chương 09 (Trang 6)
+- **Khung CTCO**:
+  - **Context (C)**: Project `backend-quan-ly-sinh-vien` sau Chương 08: Express 5, TypeScript, pnpm, Sequelize 6, SQL Server, JWT, React Frontend.
+  - **Task (T)**: Đọc file đã cung cấp; định vị Login, app/listen, Database, Global Error Handler, script build/run.
+  - **Constraint (C)**: Không tạo project mới; không tự sửa code; không đọc .env; không giả định file chưa được gửi.
+  - **Output (O)**: Bảng file – nhiệm vụ – giữ/sửa – lý do và kế hoạch bổ sung Jest, Helmet, Rate Limit, Docker.
+- **Thực thi và đối chiếu**:
+  - Đã kiểm tra `pnpm build` thành công, CSDL SQL Server kết nối tốt và bảng `dbo.SinhVien`, `dbo.Users` đầy đủ.
+  - Định vị `src/server.ts` đang gộp `app` và `app.listen()`, lên kế hoạch tách thành `src/app.ts` và `src/server.ts`.
+
+---
+
+## 23. Nhật ký Prompt 1: Cấu hình kiểm thử Jest + TypeScript + ESM (Trang 10)
+- **Khung CTCO**:
+  - **Context (C)**: Project dùng pnpm, Express 5, TypeScript, `type: module`, `ESM/NodeNext`; đã cung cấp `package.json` và `tsconfig.json`.
+  - **Task (T)**: Cài Jest, ts-jest, Supertest; tạo cấu hình kiểm thử phù hợp ESM và hướng dẫn chạy trên Windows.
+  - **Constraint (C)**: Không đổi sang CommonJS, không thay TS bằng JS, không sửa nghiệp vụ hay các script đang chạy.
+  - **Output (O)**: Lệnh cài, file thêm/sửa, nội dung cấu hình, một smoke test và hướng xử lý lỗi import ESM.
+- **Các file đã thực hiện**:
+  - Cài đặt devDependencies: `jest`, `ts-jest`, `@types/jest`, `supertest`, `@types/supertest`, `@jest/globals`.
+  - Tạo file cấu hình `jest.config.mjs` với `extensionsToTreatAsEsm: ['.ts']`, `moduleNameMapper` xử lý `.js -> .ts`, và `tsconfig.spec.json`.
+  - Tạo `tests/smoke.test.ts`.
+  - Cập nhật script `test` và `test:coverage` trong `package.json`.
+- **Kết quả thực tế**:
+  - `pnpm test` chạy thành công `PASS tests/smoke.test.ts` (1 passed).
+
+---
+
+## 24. Nhật ký Prompt 2: Viết 5 Unit Test cho nghiệp vụ Login với Mock (Trang 12)
+- **Khung CTCO**:
+  - **Context (C)**: File `src/services/auth.service.ts` hàm `loginUser`, `User` model Sequelize và `loginSchema` Zod.
+  - **Task (T)**: Viết ít nhất T01–T05 bằng Jest, Mock phụ thuộc thích hợp; giải thích logic mỗi test.
+  - **Constraint (C)**: Không kết nối Database thật; không ghi `JWT_SECRET` thật; không thay chức năng Login; giữ TypeScript/ESM; chú thích code từng dòng.
+  - **Output (O)**: File test đầy đủ `tests/unit/login.test.ts`, mô tả Mock, lệnh chạy và giải thích `describe/test/expect`.
+- **Checklist review đạt được**:
+  - Có đủ 5 trường hợp T01–T05 khớp bảng Test Case giáo trình.
+  - Mock `User.findOne` và `bcrypt.compare` được reset sạch sẽ qua `beforeEach(() => jest.clearAllMocks())`.
+  - Khi sai mật khẩu (T02) hoặc user không tồn tại (T03), đảm bảo ném lỗi 401 và không cấp JWT.
+  - Tuyệt đối không dùng secret thật hay connection string trong test.
+- **Kết quả thực tế**:
+  - `PASS tests/unit/login.test.ts` (5/5 tests passed).
+
+---
+
+## 25. Nhật ký Prompt 3: Viết bộ API Test HTTP/JWT với Supertest (Trang 14)
+- **Khung CTCO**:
+  - **Context (C)**: Express 5 có `/api/auth/login`, `/api/auth/profile`, `/api/test-500-error`, JWT middleware `isAuth` và Global Error Handler.
+  - **Task (T)**: Tạo API Test với Supertest kiểm tra A01–A07, status code, JSON và hành vi cấp Token.
+  - **Constraint (C)**: Không dùng tài khoản thật; không tự gọi listen; giữ hợp đồng API; cô lập DB phù hợp; chú thích từng dòng.
+  - **Output (O)**: File test `tests/api/auth.api.test.ts`, cách chạy, assertions chính và giải thích cách chuẩn bị dữ liệu test.
+- **Các ca kiểm thử đã thực hiện**:
+  - `A01`: Login hợp lệ trả HTTP 200 + cấp JWT Token.
+  - `A02`: Sai mật khẩu trả HTTP 401, không cấp JWT.
+  - `A03`: User không tồn tại trả HTTP 401, không cấp JWT.
+  - `A04`: Thiếu trường bắt buộc trả HTTP 400 kèm lỗi validation.
+  - `A05`: GET Profile không gửi JWT bị chặn trả HTTP 401.
+  - `A06`: GET Profile kèm JWT hợp lệ trả HTTP 200 và dữ liệu người dùng.
+  - `A07`: Lỗi hệ thống nội bộ trả HTTP 500 an toàn, không lộ chuỗi kết nối hay SQL stack.
+- **Kết quả thực tế**:
+  - `PASS tests/api/auth.api.test.ts` (7/7 tests passed).
+  - Toàn bộ Test Suite: 3 passed, 13 passed, 13 total.
+
+---
+
+## 26. Nhật ký Prompt 4: Tích hợp Helmet và Rate Limit cho Route Login (Trang 19)
+- **Khung CTCO**:
+  - **Context (C)**: Project Express 5, TypeScript, JWT, Swagger YAML, Global Error Handler; đã có sẵn `src/app.ts` và `src/routes/auth.routes.ts`.
+  - **Task (T)**: Bổ sung Helmet toàn ứng dụng và limiter riêng cho `POST /api/auth/login`: tối đa 5 yêu cầu/60 giây, yêu cầu vượt giới hạn 429.
+  - **Constraint (C)**: Không xóa JWT; không sửa Controller nếu không cần; không ảnh hưởng endpoint khác; giữ response lỗi chuẩn; chú thích code từng dòng.
+  - **Output (O)**: Chỉ ra file tạo/sửa, code tích hợp đúng vị trí và cách kiểm tra bằng Postman/Response Headers.
+- **Thực hiện thực tế**:
+  - Cài đặt `express-rate-limit`.
+  - Tạo `src/middlewares/rate-limit.middleware.ts` với `windowMs: 60*1000`, `limit: 5`, `standardHeaders: 'draft-7'`.
+  - Gắn vào `router.post('/login', loginLimiter, validate(loginSchema), login)` trong `src/routes/auth.routes.ts`.
+  - Viết bộ test `tests/api/security.api.test.ts` kiểm chứng 7 ca S01–S07 đạt 100% PASS.
+
+---
+
+## 27. Nhật ký Prompt 5: Security Code Review có định hướng (Trang 22)
+- **Khung CTCO**:
+  - **Context (C)**: Controller, Service, Route và cấu hình Express của dự án Quản lý sinh viên đã loại bỏ secret.
+  - **Task (T)**: Kiểm tra SQL Injection, XSS, secret/log, Authentication/Authorization và thứ tự Middleware.
+  - **Constraint (C)**: Chỉ dựa trên code được cung cấp; không tự khẳng định có lỗ hổng; không tắt JWT/Zod; không sửa schema tùy tiện.
+  - **Output (O)**: Bảng vị trí – rủi ro – mức ưu tiên – nguyên nhân – cách sửa – file thay đổi – cách kiểm thử trong `docs/security-report.md`.
+- **Thực hiện thực tế**:
+  - Lập báo cáo `docs/security-report.md` theo chuẩn 5 phần: Phạm vi, Phát hiện, Điều chỉnh, Kết quả test trước/sau, Các rủi ro còn lại.
+  - Phân tích chi tiết tại sao Sequelize ORM chống được SQL Injection qua Parameterized queries.
+
+---
+
+## 28. Nhật ký Prompt 6: Phân tích và tối ưu hóa truy vấn SQL Server (Trang 24)
+- **Khung CTCO**:
+  - **Context (C)**: Dùng SQL Server (SQLEXPRESS), Sequelize 6; schema `dbo.SinhVien`, câu lệnh SELECT phân trang & tìm kiếm theo họ tên.
+  - **Task (T)**: Phân tích điểm nghẽn, đề xuất tối ưu nhưng phải giữ data và thứ tự kết quả.
+  - **Constraint (C)**: Không tạo bảng/cột không có; không tự thêm Index bừa bãi; không thay dữ liệu thật; không ghép input vào Raw SQL; không bịa đặt cải thiện hiệu năng.
+  - **Output (O)**: Bảng truy vấn cũ/mới, nguyên nhân, SQL đề xuất, cách đo IO/TIME và cách so sánh kết quả trong `docs/sql-optimization.md`.
+- **Thực hiện thực tế**:
+  - Viết script `src/scripts/measure-sql-performance.ts` sử dụng TDS driver để đọc thông điệp `infoMessage` từ SQL Server.
+  - Kết quả đo đạc thực tế: `Scan count 1, logical reads 2, CPU time = 0 ms, elapsed time = 1 ms`.
+  - Lập bảng so sánh và phân tích nguyên nhân Clustered Index Scan do ký tự wildcard `%` ở đầu toán tử `LIKE N'%Anh%'`.
+
+---
+
+## 29. Nhật ký Prompt 7: Xây dựng Dockerfile Multi-stage & .dockerignore (Trang 29)
+- **Khung CTCO**:
+  - **Context (C)**: Project Express 5, TS, pnpm, ESM, SQL Server; đã có sẵn `package.json`, `tsconfig.json` và file khởi động `src/server.ts`.
+  - **Task (T)**: Tạo Dockerfile multi-stage, `.dockerignore`, biên dịch TypeScript và chạy entrypoint có thật.
+  - **Constraint (C)**: Giữ pnpm/ESM; không copy secret/.env; không đoán `dist/index.js`; không thay nghiệp vụ; chú thích code từng dòng.
+  - **Output (O)**: File đầy đủ, giải thích từng stage, lệnh build và cách chẩn đoán lỗi container.
+- **Thực hiện thực tế**:
+  - Tạo file `.dockerignore` loại trừ `node_modules`, `.env`, `dist`, logs.
+  - Tạo `Dockerfile` gồm 2 stage: `build` (Node 22, pnpm install, pnpm build) và `runtime` (Node 22, pnpm install --prod, copy dist, docs, public, EXPOSE 5000, CMD node dist/server.js).
+
+---
+
+## 30. Nhật ký Prompt 8: Hoàn thiện Docker Compose đa dịch vụ & Healthcheck (Trang 33)
+- **Khung CTCO**:
+  - **Context (C)**: Dockerfile Backend đã sẵn sàng; Sequelize kết nối SQL Server; DB là `QuanLySinhVienDB`.
+  - **Task (T)**: Viết Compose gồm backend + sqlserver, network, environment, named volumes, healthcheck thực thi được và hướng dẫn chứng minh dữ liệu bền vững.
+  - **Constraint (C)**: Không hardcode secret; không dùng localhost giữa container; không tự tạo schema khác; bảo toàn thư mục uploads; chú thích code từng dòng.
+  - **Output (O)**: `compose.yaml` đầy đủ, `.env.example`, cách chạy, kiểm tra DB healthy và chứng minh dữ liệu sau recreate trong `docs/deployment-report.md`.
+- **Thực hiện thực tế**:
+  - Khai báo 2 services `backend` và `sqlserver` cùng mạng `backend-network`.
+  - Cấu hình `healthcheck` cho SQL Server với `sqlcmd` và `depends_on: { sqlserver: { condition: service_healthy } }`.
+  - Khai báo Named Volumes: `sqlserver-data` và `uploads-data`.
+  - Viết tài liệu `docs/deployment-report.md` chi tiết 6 phần và ma trận D01–D09.
+
+
+

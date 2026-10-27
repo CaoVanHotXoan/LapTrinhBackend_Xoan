@@ -1,0 +1,129 @@
+# ==============================================================================
+# TẬP TIN CẤU HÌNH DOCKER COMPOSE ĐIỀU PHỐI ĐA CONTAINER (LAB 3 - TRANG 31, 32)
+# File: compose.yaml
+# Mục đích: Quản lý vòng đời dịch vụ Backend Express và SQL Server cùng Named Volumes
+# ==============================================================================
+
+# Khai báo phiên bản định dạng compose
+name: backend-quan-ly-sinh-vien-lab09
+
+# Định nghĩa các dịch vụ (Services) container trong hệ thống
+services:
+  # ----------------------------------------------------------------------------
+  # DỊCH VỤ 1: HỆ QUẢN TRỊ CƠ SỞ DỮ LIỆU SQL SERVER
+  # ----------------------------------------------------------------------------
+  sqlserver:
+    # 1. Sử dụng image SQL Server 2022 chính thức từ Microsoft Container Registry
+    image: mcr.microsoft.com/mssql/server:2022-latest
+
+    # 2. Đặt tên tường minh cho container để dễ theo dõi và kiểm tra lệnh logs/ps
+    container_name: sqlserver-sinhvien-lab09
+
+    # 3. Khai báo các biến môi trường cấu hình bắt buộc của SQL Server
+    environment:
+      # Chấp nhận điều khoản sử dụng giấy phép phần mềm của Microsoft (bắt buộc = Y)
+      ACCEPT_EULA: "Y"
+      # Phiên bản Developer miễn phí phục vụ học tập, kiểm thử và phát triển
+      MSSQL_PID: "Developer"
+      # Mật khẩu quản trị viên SA (đọc từ biến môi trường máy host hoặc mặc định an toàn)
+      MSSQL_SA_PASSWORD: "${DB_PASSWORD:-123456}"
+
+    # 4. Ánh xạ cổng TCP 1433 từ container ra máy Host (chỉ bind cục bộ 127.0.0.1)
+    ports:
+      - "127.0.0.1:1433:1433"
+
+    # 5. Gắn Named Volume để lưu trữ bền vững dữ liệu Database (không mất khi recreate container)
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+
+    # 6. Cấu hình kiểm tra sức khỏe dịch vụ (Healthcheck) đảm bảo SQL Server đã sẵn sàng nhận kết nối
+    healthcheck:
+      # Kiểm tra bằng tiện ích sqlcmd có sẵn trong image, xác nhận câu lệnh SELECT 1 thành công
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' || exit 1"]
+      # Tần suất lặp lại phép kiểm tra: mỗi 10 giây một lần
+      interval: 10s
+      # Thời gian chờ phản hồi tối đa của mỗi lần thử
+      timeout: 5s
+      # Số lần thử lại tối đa trước khi đánh dấu container bị lỗi (unhealthy)
+      retries: 5
+      # Thời gian chờ ban đầu để SQL Server khởi động hoàn tất trước khi bắt đầu kiểm tra
+      start_period: 20s
+
+    # 7. Gắn container vào mạng bridge nội bộ
+    networks:
+      - backend-network
+
+  # ----------------------------------------------------------------------------
+  # DỊCH VỤ 2: MÁY CHỦ ỨNG DỤNG BACKEND NODE.JS EXPRESS
+  # ----------------------------------------------------------------------------
+  backend:
+    # 8. Chỉ định thư mục chứa Dockerfile để Docker tự động build image
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # 9. Tên container của ứng dụng Backend
+    container_name: backend-sinhvien-lab09
+
+    # 10. Thiết lập các biến môi trường cấu hình ứng dụng
+    environment:
+      # Môi trường thực thi production
+      NODE_ENV: production
+      # Cổng lắng nghe kết nối của Express
+      PORT: "5000"
+      # Địa chỉ máy chủ CSDL: Trỏ thẳng tới tên service "sqlserver" trong cùng Compose network
+      # (Ghi chú: Nếu dùng Phương án A chạy SQL ngoài Windows Host, đổi thành "host.docker.internal")
+      DB_HOST: sqlserver
+      # Cổng kết nối CSDL mặc định của SQL Server
+      DB_PORT: "1433"
+      # Tên cơ sở dữ liệu của ứng dụng
+      DB_NAME: "${DB_NAME:-QuanLySinhVienDB}"
+      # Tài khoản đăng nhập CSDL
+      DB_USER: "${DB_USER:-sa}"
+      # Mật khẩu kết nối CSDL
+      DB_PASSWORD: "${DB_PASSWORD:-123456}"
+      # Phương thức mã hóa kết nối TLS của Tedious
+      DB_ENCRYPT: "${DB_ENCRYPT:-false}"
+      # Tin cậy chứng chỉ tự ký của container SQL Server
+      DB_TRUST_CERT: "${DB_TRUST_CERT:-true}"
+      # Khóa bí mật dùng để ký và xác thực mã JWT Token
+      JWT_SECRET: "${JWT_SECRET:-SieuBiMat_JWT_Secret_Key_Khoa6_Backend_2026_@_Secure!}"
+      # Nguồn gốc client được phép gọi API (Frontend Vite)
+      CLIENT_ORIGIN: "${CLIENT_ORIGIN:-http://localhost:5173}"
+
+    # 11. Ánh xạ cổng 5000 của container ra cổng 5000 trên máy Host (127.0.0.1)
+    ports:
+      - "127.0.0.1:5000:5000"
+
+    # 12. Gắn Named Volume để lưu trữ bền vững các tập tin ảnh đại diện tải lên
+    volumes:
+      - uploads-data:/app/public/uploads
+
+    # 13. Khai báo sự phụ thuộc: Backend chỉ khởi động SAU KHI SQL Server đã thực sự khỏe mạnh (healthy)
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+    # 14. Gắn container vào chung mạng với SQL Server để phân giải tên miền service
+    networks:
+      - backend-network
+
+# ------------------------------------------------------------------------------
+# KHAI BÁO CÁC NAMED VOLUMES LƯU TRỮ DỮ LIỆU BỀN VỮNG (DATA PERSISTENCE)
+# ------------------------------------------------------------------------------
+volumes:
+  # Volume lưu trữ toàn bộ các file cơ sở dữ liệu (.mdf, .ldf, master) của SQL Server
+  sqlserver-data:
+    name: sqlserver-sinhvien-data-volume
+
+  # Volume lưu trữ toàn bộ các tệp tin hình ảnh avatar người dùng tải lên
+  uploads-data:
+    name: uploads-sinhvien-data-volume
+
+# ------------------------------------------------------------------------------
+# KHAI BÁO MẠNG NỘI BỘ (BRIDGE NETWORK)
+# ------------------------------------------------------------------------------
+networks:
+  backend-network:
+    name: backend-sinhvien-net
+    driver: bridge

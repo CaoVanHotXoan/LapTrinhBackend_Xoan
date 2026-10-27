@@ -1,0 +1,583 @@
+{
+  "info": {
+    "_postman_id": "lab2-chuong9-security-s01-s07",
+    "name": "Chương 09 - Lab 2: Ma Trận Kiểm Thử Bảo Mật (S01 - S07)",
+    "description": "Bộ sưu tập Postman Collection hoàn chỉnh kiểm thử 7 ca bảo mật S01 - S07 theo đúng tài liệu giáo trình Chương 09 Trang 20: 5 Login requests đầu bình thường (S01), Request thứ 6 nhận HTTP 429 (S02), Hết cửa sổ xét hạn mức mới (S03), GET danh sách không chịu giới hạn Login (S04), Response Headers có Helmet (S05), Login sai trước khi vượt hạn mức 401 (S06), Student gọi DELETE bị 403 RBAC (S07).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Tự động kiểm tra và đăng nhập cấp studentToken nếu chưa có sẵn để phục vụ ca kiểm thử S07",
+          "const baseUrl = pm.variables.get(\"baseUrl\") || \"http://localhost:5000\";",
+          "const studentTok = pm.variables.get(\"studentToken\");",
+          "",
+          "if (!studentTok || studentTok.trim() === \"\") {",
+          "    pm.sendRequest({",
+          "        url: baseUrl + \"/api/auth/login\",",
+          "        method: \"POST\",",
+          "        header: { \"Content-Type\": \"application/json\" },",
+          "        body: {",
+          "            mode: \"raw\",",
+          "            raw: JSON.stringify({",
+          "                email: pm.variables.get(\"studentEmail\") || \"student.lab@example.com\",",
+          "                password: pm.variables.get(\"studentPassword\") || \"Student@123456\"",
+          "            })",
+          "        }",
+          "    }, function (err, res) {",
+          "        if (!err && res.code === 200) {",
+          "            const json = res.json();",
+          "            if (json.data && json.data.accessToken) {",
+          "                pm.collectionVariables.set(\"studentToken\", json.data.accessToken);",
+          "                console.log(\"🎓 [Auto-Auth] Cấp studentToken thành công cho biến collection!\");",
+          "            }",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "S06 - Login sai trước khi vượt hạn mức (Lần 1/5 - HTTP 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S06 - Trạng thái HTTP phải là 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "",
+              "pm.test(\"S06 - Từ chối xác thực và tuyệt đối không cấp JWT\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status).to.eql(401);",
+              "    pm.expect(jsonData.data).to.eql(null);",
+              "    pm.expect(jsonData).to.not.have.property(\"accessToken\");",
+              "});",
+              "",
+              "pm.test(\"S06 - Lần gọi thứ 1 chưa vượt ngưỡng 5 requests (không nhận 429)\", function () {",
+              "    pm.expect(pm.response.code).to.not.equal(429);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"MatKhauSaiDeKiemTraS06!@#\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử S06: Đăng nhập sai mật khẩu ở lần gọi thứ 1. Kỳ vọng HTTP 401, không cấp JWT và chưa kích hoạt mã 429."
+      },
+      "response": []
+    },
+    {
+      "name": "S01.1 - Login request lần 2/5 (Được xử lý bình thường)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S01.1 - Được xử lý bình thường, không bị chặn bởi rate limit\", function () {",
+              "    pm.expect(pm.response.code).to.not.equal(429);",
+              "    pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Lần gọi thứ 2 trong cửa sổ 60s: Nằm trong hạn mức cho phép (2/5)."
+      },
+      "response": []
+    },
+    {
+      "name": "S01.2 - Login request lần 3/5 (Được xử lý bình thường)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S01.2 - Được xử lý bình thường, không bị chặn bởi rate limit\", function () {",
+              "    pm.expect(pm.response.code).to.not.equal(429);",
+              "    pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Lần gọi thứ 3 trong cửa sổ 60s: Nằm trong hạn mức cho phép (3/5)."
+      },
+      "response": []
+    },
+    {
+      "name": "S01.3 - Login request lần 4/5 (Được xử lý bình thường)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S01.3 - Được xử lý bình thường, không bị chặn bởi rate limit\", function () {",
+              "    pm.expect(pm.response.code).to.not.equal(429);",
+              "    pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Lần gọi thứ 4 trong cửa sổ 60s: Nằm trong hạn mức cho phép (4/5)."
+      },
+      "response": []
+    },
+    {
+      "name": "S01.4 - Login request lần 5/5 (Được xử lý bình thường - Chạm ngưỡng)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S01.4 - Lần thứ 5/5 vẫn được xử lý hợp lệ (chạm ngưỡng)\", function () {",
+              "    pm.expect(pm.response.code).to.not.equal(429);",
+              "    pm.expect([200, 401]).to.include(pm.response.code);",
+              "});",
+              "",
+              "pm.test(\"S01.4 - Header RateLimit ghi nhận số lượt còn lại bằng 0\", function () {",
+              "    const rlHeader = pm.response.headers.get(\"RateLimit\");",
+              "    if (rlHeader) {",
+              "        pm.expect(rlHeader).to.include(\"remaining=0\");",
+              "    }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Lần gọi thứ 5 trong cửa sổ 60s: Đạt đúng giới hạn 5 request đầu tiên."
+      },
+      "response": []
+    },
+    {
+      "name": "S02 - Request thứ 6 vượt hạn mức (HTTP 429 Too Many Requests)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S02 - Trạng thái HTTP bắt buộc phải là 429 Too Many Requests\", function () {",
+              "    pm.response.to.have.status(429);",
+              "});",
+              "",
+              "pm.test(\"S02 - Định dạng lỗi JSON chuẩn hóa của dự án\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status).to.eql(429);",
+              "    pm.expect(jsonData.message).to.eql(\"Bạn đã gửi quá nhiều yêu cầu\");",
+              "    pm.expect(jsonData.data).to.eql(null);",
+              "});",
+              "",
+              "pm.test(\"S02 - Có header RateLimit hoặc Retry-After của express-rate-limit\", function () {",
+              "    const hasRateLimit = pm.response.headers.has(\"RateLimit\") || pm.response.headers.has(\"Retry-After\");",
+              "    pm.expect(hasRateLimit).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử S02: Request thứ 6 liên tiếp trong 60 giây. Limiter chặn lại và trả về HTTP 429."
+      },
+      "response": []
+    },
+    {
+      "name": "S03 - Đợi hết cửa sổ 60s, gửi lại (Được xét hạn mức mới)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S03 - Sau khi hết cửa sổ 60s, không còn bị chặn mã 429\", function () {",
+              "    pm.expect(pm.response.code).to.not.equal(429);",
+              "    pm.expect([200, 401]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"email\": \"{{userEmail}}\",\n    \"password\": \"{{userPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/auth/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Ca kiểm thử S03: Đợi sau khi hết cửa sổ 60 giây kể từ request đầu tiên, gửi lại request sẽ nhận được hạn mức mới (không còn bị 429)."
+      },
+      "response": []
+    },
+    {
+      "name": "S04 - GET danh sách SinhVien (Không chịu giới hạn Login)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S04 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"S04 - Route SinhVien hoàn toàn độc lập, không bị ảnh hưởng bởi Login limiter\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(true);",
+              "    pm.expect(jsonData.data).to.be.an(\"array\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien?page=1&limit=5",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "5"
+            }
+          ]
+        },
+        "description": "Ca kiểm thử S04: Ngay cả khi route Login đang bị khóa 429, route lấy danh sách sinh viên vẫn hoạt động bình thường HTTP 200."
+      },
+      "response": []
+    },
+    {
+      "name": "S05 - Kiểm tra Response Headers (Có security headers của Helmet)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S05 - Trạng thái HTTP phải là 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "pm.test(\"S05 - Có header X-Content-Type-Options: nosniff\", function () {",
+              "    pm.response.to.have.header(\"X-Content-Type-Options\", \"nosniff\");",
+              "});",
+              "",
+              "pm.test(\"S05 - Có header X-Frame-Options: SAMEORIGIN\", function () {",
+              "    pm.response.to.have.header(\"X-Frame-Options\", \"SAMEORIGIN\");",
+              "});",
+              "",
+              "pm.test(\"S05 - Đã loại bỏ hoặc ẩn header rò rỉ công nghệ X-Powered-By\", function () {",
+              "    pm.expect(pm.response.headers.has(\"X-Powered-By\")).to.eql(false);",
+              "});",
+              "",
+              "pm.test(\"S05 - Có header Cross-Origin-Resource-Policy: cross-origin cho ảnh tĩnh\", function () {",
+              "    pm.response.to.have.header(\"Cross-Origin-Resource-Policy\", \"cross-origin\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            ""
+          ]
+        },
+        "description": "Ca kiểm thử S05: Kiểm tra các HTTP Security Headers do Helmet thiết lập tự động để bảo vệ ứng dụng."
+      },
+      "response": []
+    },
+    {
+      "name": "S07 - Student gọi DELETE (HTTP 403 Forbidden theo RBAC)",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Tự động sinh Token JWT chuẩn vai trò Student (không phụ thuộc vào mạng, không bị 429 rate limit)",
+              "const header = { alg: \"HS256\", typ: \"JWT\" };",
+              "const now = Math.floor(Date.now() / 1000);",
+              "const payload = { sub: \"28\", role: \"student\", iat: now, exp: now + 3600 };",
+              "",
+              "function base64url(source) {",
+              "    let encodedSource = CryptoJS.enc.Base64.stringify(source);",
+              "    encodedSource = encodedSource.replace(/=+$/, '');",
+              "    encodedSource = encodedSource.replace(/\\+/g, '-');",
+              "    encodedSource = encodedSource.replace(/\\//g, '_');",
+              "    return encodedSource;",
+              "}",
+              "",
+              "const encodedHeader = base64url(CryptoJS.enc.Utf8.parse(JSON.stringify(header)));",
+              "const encodedPayload = base64url(CryptoJS.enc.Utf8.parse(JSON.stringify(payload)));",
+              "const secret = \"SieuBiMat_JWT_Secret_Key_Khoa6_Backend_2026_@_Secure!\";",
+              "const signature = base64url(CryptoJS.HmacSHA256(encodedHeader + \".\" + encodedPayload, secret));",
+              "const freshToken = encodedHeader + \".\" + encodedPayload + \".\" + signature;",
+              "",
+              "// Ghi đè trực tiếp vào Environment hiện tại và Collection Variables để loại bỏ hoàn toàn token cũ hết hạn",
+              "pm.environment.set(\"studentToken\", freshToken);",
+              "pm.collectionVariables.set(\"studentToken\", freshToken);",
+              "pm.variables.set(\"studentToken\", freshToken);",
+              "console.log(\"🎓 [S07 Auto-Auth] Đã tự động tạo và nạp Student Token mới tinh:\", freshToken);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"S07 - Trạng thái HTTP bắt buộc phải là 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});",
+              "",
+              "pm.test(\"S07 - Middleware isAdmin từ chối quyền student và bảo toàn dữ liệu\", function () {",
+              "    const jsonData = pm.response.json();",
+              "    pm.expect(jsonData.success).to.eql(false);",
+              "    pm.expect(jsonData.status).to.eql(403);",
+              "    pm.expect(jsonData.message).to.include(\"quản trị viên\");",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{studentToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/sinh-vien/SV001",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "sinh-vien",
+            "SV001"
+          ]
+        },
+        "description": "Ca kiểm thử S07: Quyền student gửi request DELETE tới /api/v1/sinh-vien/:maSV. Bị chặn bởi middleware isAdmin và nhận mã HTTP 403 Forbidden."
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "admin.lab@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userPassword",
+      "value": "Admin@123456",
+      "type": "string"
+    },
+    {
+      "key": "studentEmail",
+      "value": "student.lab@example.com",
+      "type": "string"
+    },
+    {
+      "key": "studentPassword",
+      "value": "Student@123456",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

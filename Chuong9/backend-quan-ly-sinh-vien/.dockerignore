@@ -1,0 +1,47 @@
+# ==============================================================================
+# DANH SÁCH CÁC FILE VÀ THƯ MỤC BỊ LOẠI TRỪ KHỎI DOCKER BUILD CONTEXT
+# File: .dockerignore (Chương 09 - Lab 3 - Trang 29)
+# Mục đích: Giảm dung lượng build context, tăng tốc build và chống rò rỉ bí mật
+# ==============================================================================
+
+# 1. Loại bỏ thư mục thư viện node_modules cài đặt trên máy Host Windows
+node_modules
+npm-debug.log
+pnpm-debug.log
+
+# 2. Loại bỏ thư mục quản lý phiên bản Git
+.git
+.gitignore
+
+# 3. Loại bỏ tuyệt đối các file chứa biến môi trường và mật khẩu thật
+.env
+.env.*
+.env.local
+
+# Ngoại lệ: Giữ lại file mẫu .env.example để làm tài liệu cấu hình
+!.env.example
+
+# 4. Loại bỏ thư mục mã JavaScript biên dịch cũ trên máy Host
+dist
+dist-test
+
+# 5. Loại bỏ thư mục báo cáo đo lường độ phủ kiểm thử
+coverage
+
+# 6. Loại bỏ toàn bộ các file nhật ký ghi vết runtime
+logs/
+*.log
+
+# 7. Loại bỏ các file định nghĩa Docker để tránh lặp vô tận
+Dockerfile*
+compose*.yaml
+docker-compose*.yaml
+
+# 8. Loại bỏ thư viện Frontend nếu có nằm lẫn trong context
+frontend/node_modules
+frontend/dist
+
+# 9. Loại bỏ các thư mục tạm và file ẩn của hệ điều hành
+temp_uploads/
+.DS_Store
+Thumbs.db
